@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+
+import 'db_factory.dart';
 
 class AppDatabase {
   AppDatabase._(this._db);
@@ -11,8 +14,17 @@ class AppDatabase {
   static const _version = 1;
 
   static Future<AppDatabase> open() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final path = p.join(dir.path, _name);
+    configureSqfliteForCurrentPlatform();
+
+    final String path;
+    if (kIsWeb) {
+      // On web, sqflite uses an IndexedDB-backed implementation and does not
+      // support path_provider / filesystem paths.
+      path = _name;
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      path = p.join(dir.path, _name);
+    }
     final db = await openDatabase(
       path,
       version: _version,
@@ -70,7 +82,8 @@ CREATE TABLE orders (
 );
 ''');
         await db.execute('CREATE INDEX idx_orders_due ON orders(due_date);');
-        await db.execute('CREATE INDEX idx_orders_customer ON orders(customer_id);');
+        await db.execute(
+            'CREATE INDEX idx_orders_customer ON orders(customer_id);');
         await db.execute('''
 CREATE TABLE payments (
   id TEXT NOT NULL PRIMARY KEY,
@@ -81,7 +94,8 @@ CREATE TABLE payments (
   FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
 );
 ''');
-        await db.execute('CREATE INDEX idx_payments_order ON payments(order_id);');
+        await db
+            .execute('CREATE INDEX idx_payments_order ON payments(order_id);');
         await db.execute('''
 CREATE TABLE outbox_ops (
   id TEXT NOT NULL PRIMARY KEY,
