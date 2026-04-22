@@ -1,0 +1,6 @@
+## Copy to `android/local.properties` on your machine.
+##
+## flutter.sdk must point at your Flutter SDK checkout.
+#
+#sdk.dir=/Users/you/Library/Android/sdk
+#flutter.sdk=/Users/you/flutter
