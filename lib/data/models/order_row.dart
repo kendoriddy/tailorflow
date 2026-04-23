@@ -23,22 +23,3 @@ class OrderRow {
   final DateTime createdAt;
   final DateTime updatedAt;
 }
-
-class OrderDueView extends OrderRow {
-  const OrderDueView({
-    required super.id,
-    required super.customerId,
-    required super.title,
-    super.fabricNote,
-    required super.dueDate,
-    required super.status,
-    required super.agreedAmountNgn,
-    required super.createdAt,
-    required super.updatedAt,
-    required this.customerName,
-    required this.balanceNgn,
-  });
-
-  final String customerName;
-  final int balanceNgn;
-}

@@ -11,7 +11,7 @@ class AppDatabase {
   final Database _db;
 
   static const _name = 'tailorflow.db';
-  static const _version = 1;
+  static const _version = 3;
 
   static Future<AppDatabase> open() async {
     configureSqfliteForCurrentPlatform();
@@ -54,6 +54,7 @@ CREATE TABLE measurement_profiles (
   label TEXT NOT NULL,
   chest REAL,
   waist REAL,
+  hip REAL,
   length REAL,
   sleeve REAL,
   shoulder REAL,
@@ -115,6 +116,60 @@ CREATE TABLE shop_settings (
   value TEXT NOT NULL
 );
 ''');
+        await db.execute('''
+CREATE TABLE notifications (
+  id TEXT NOT NULL PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  due_date INTEGER NOT NULL,
+  fire_on INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  read_at INTEGER,
+  UNIQUE(order_id, kind, fire_on),
+  FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
+);
+''');
+        await db.execute(
+          'CREATE INDEX idx_notifications_read ON notifications(read_at);',
+        );
+        await db.execute(
+          'CREATE INDEX idx_notifications_fire ON notifications(fire_on);',
+        );
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db
+              .execute('ALTER TABLE measurement_profiles ADD COLUMN hip REAL;');
+        }
+        if (oldVersion < 3) {
+          await db.execute('''
+CREATE TABLE notifications (
+  id TEXT NOT NULL PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  due_date INTEGER NOT NULL,
+  fire_on INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  read_at INTEGER,
+  UNIQUE(order_id, kind, fire_on),
+  FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
+);
+''');
+          await db.execute(
+            'CREATE INDEX idx_notifications_read ON notifications(read_at);',
+          );
+          await db.execute(
+            'CREATE INDEX idx_notifications_fire ON notifications(fire_on);',
+          );
+        }
       },
     );
     return AppDatabase._(db);

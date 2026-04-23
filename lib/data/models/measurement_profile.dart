@@ -5,6 +5,7 @@ class MeasurementProfile {
     required this.label,
     this.chest,
     this.waist,
+    this.hip,
     this.length,
     this.sleeve,
     this.shoulder,
@@ -19,6 +20,7 @@ class MeasurementProfile {
   final String label;
   final double? chest;
   final double? waist;
+  final double? hip;
   final double? length;
   final double? sleeve;
   final double? shoulder;

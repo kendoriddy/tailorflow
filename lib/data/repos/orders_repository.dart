@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/utils/money.dart';
 import '../db/app_database.dart';
+import '../models/order_money_view.dart';
 import '../models/order_row.dart';
 import '../models/order_status.dart';
 import '../sync/outbox_repository.dart';
@@ -13,6 +14,31 @@ class OrdersRepository {
   final OutboxRepository _outbox;
 
   static const _uuid = Uuid();
+
+  Future<List<OrderMoneyView>> listMoneyForCustomer(String customerId) async {
+    final rows = await _db.raw.rawQuery('''
+SELECT o.*,
+  IFNULL((SELECT SUM(p.amount_ngn) FROM payments p WHERE p.order_id = o.id), 0) AS paid_ngn,
+  MAX(
+    o.agreed_amount_ngn - IFNULL((SELECT SUM(p.amount_ngn) FROM payments p WHERE p.order_id = o.id), 0),
+    0
+  ) AS balance_ngn
+FROM orders o
+WHERE o.customer_id = ?
+ORDER BY o.due_date ASC
+''', [customerId]);
+
+    return rows.map((m) {
+      final order = _mapOrder(m);
+      final paid = (m['paid_ngn'] as num?)?.toInt() ?? 0;
+      final bal = (m['balance_ngn'] as num?)?.toInt() ??
+          clampNonNegativeBalance(
+            agreedAmountNgn: order.agreedAmountNgn,
+            paidSumNgn: paid,
+          );
+      return OrderMoneyView(order: order, paidNgn: paid, balanceNgn: bal);
+    }).toList();
+  }
 
   Future<List<OrderRow>> listForCustomer(String customerId) async {
     final rows = await _db.raw.query(
@@ -62,6 +88,7 @@ class OrdersRepository {
       'created_at': now,
       'updated_at': now,
     });
+    await _bumpCustomerUpdatedAt(customerId);
     await _outbox.enqueue(
       type: OutboxOpType.upsertOrder,
       entityId: id,
@@ -95,6 +122,7 @@ class OrdersRepository {
       where: 'id = ?',
       whereArgs: [o.id],
     );
+    await _bumpCustomerUpdatedAt(o.customerId);
     await _outbox.enqueue(
       type: OutboxOpType.upsertOrder,
       entityId: o.id,
@@ -108,6 +136,16 @@ class OrdersRepository {
         'agreed_amount_ngn': o.agreedAmountNgn,
         'updated_at': now,
       },
+    );
+  }
+
+  Future<void> _bumpCustomerUpdatedAt(String customerId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _db.raw.update(
+      'customers',
+      {'updated_at': now},
+      where: 'id = ?',
+      whereArgs: [customerId],
     );
   }
 

@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 import '../../core/utils/phone.dart';
 import '../db/app_database.dart';
 import '../models/customer.dart';
+import '../models/customer_list_item.dart';
+import '../models/order_status.dart';
 import '../models/measurement_profile.dart';
 import '../sync/outbox_repository.dart';
 
@@ -13,6 +15,87 @@ class CustomersRepository {
   final OutboxRepository _outbox;
 
   static const _uuid = Uuid();
+
+  Future<List<CustomerListItem>> listSummary({String query = ''}) async {
+    final q = query.trim();
+    final norm = normalizePhoneDigits(q);
+    final like = '%${q.replaceAll('%', '\\%')}%';
+
+    final where = q.isEmpty
+        ? 'c.deleted_at IS NULL'
+        : 'c.deleted_at IS NULL AND (c.name LIKE ? OR c.phone_norm LIKE ?)';
+    final args = q.isEmpty ? const <Object?>[] : <Object?>[like, '%$norm%'];
+
+    final rows = await _db.raw.rawQuery('''
+SELECT
+  c.id AS customer_id,
+  c.name AS name,
+  c.phone AS phone,
+  c.updated_at AS updated_at,
+  IFNULL((
+    SELECT SUM(
+      MAX(
+        o.agreed_amount_ngn - IFNULL((SELECT SUM(p.amount_ngn) FROM payments p WHERE p.order_id = o.id), 0),
+        0
+      )
+    )
+    FROM orders o
+    WHERE o.customer_id = c.id
+      AND o.status != ?
+  ), 0) AS owed_ngn,
+  IFNULL((
+    SELECT COUNT(*)
+    FROM orders o
+    WHERE o.customer_id = c.id
+      AND o.status != ?
+  ), 0) AS open_orders_count,
+  (
+    SELECT o.title
+    FROM orders o
+    WHERE o.customer_id = c.id
+    ORDER BY o.updated_at DESC
+    LIMIT 1
+  ) AS last_order_title,
+  (
+    SELECT o.due_date
+    FROM orders o
+    WHERE o.customer_id = c.id
+    ORDER BY o.updated_at DESC
+    LIMIT 1
+  ) AS last_order_due_date,
+  (
+    SELECT o.status
+    FROM orders o
+    WHERE o.customer_id = c.id
+    ORDER BY o.updated_at DESC
+    LIMIT 1
+  ) AS last_order_status
+FROM customers c
+WHERE $where
+ORDER BY c.updated_at DESC
+''', [
+      OrderStatus.collected.wireName,
+      OrderStatus.collected.wireName,
+      ...args,
+    ]);
+
+    return rows.map((m) {
+      final dueMs = (m['last_order_due_date'] as int?);
+      final rawStatus = m['last_order_status'] as String?;
+      return CustomerListItem(
+        customerId: m['customer_id']! as String,
+        name: m['name']! as String,
+        phone: m['phone'] as String?,
+        totalOwedNgn: (m['owed_ngn'] as num?)?.toInt() ?? 0,
+        openOrdersCount: (m['open_orders_count'] as num?)?.toInt() ?? 0,
+        lastOrderTitle: m['last_order_title'] as String?,
+        lastOrderDueDate:
+            dueMs == null ? null : DateTime.fromMillisecondsSinceEpoch(dueMs),
+        lastOrderStatus:
+            rawStatus == null ? null : OrderStatus.parse(rawStatus),
+      );
+    }).toList();
+  }
 
   Future<List<Customer>> search(String query) async {
     final q = query.trim();
@@ -40,7 +123,8 @@ class CustomersRepository {
   }
 
   Future<Customer?> getById(String id) async {
-    final rows = await _db.raw.query('customers', where: 'id = ?', whereArgs: [id]);
+    final rows =
+        await _db.raw.query('customers', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     return _mapCustomer(rows.first);
   }
@@ -134,6 +218,7 @@ class CustomersRepository {
     String label = 'Default',
     double? chest,
     double? waist,
+    double? hip,
     double? length,
     double? sleeve,
     double? shoulder,
@@ -151,6 +236,7 @@ class CustomersRepository {
         'label': label,
         'chest': chest,
         'waist': waist,
+        'hip': hip,
         'length': length,
         'sleeve': sleeve,
         'shoulder': shoulder,
@@ -166,6 +252,7 @@ class CustomersRepository {
           'label': label,
           'chest': chest,
           'waist': waist,
+          'hip': hip,
           'length': length,
           'sleeve': sleeve,
           'shoulder': shoulder,
@@ -187,6 +274,7 @@ class CustomersRepository {
         'label': label,
         'chest': chest,
         'waist': waist,
+        'hip': hip,
         'length': length,
         'sleeve': sleeve,
         'shoulder': shoulder,
@@ -219,6 +307,7 @@ class CustomersRepository {
       label: m['label']! as String,
       chest: (m['chest'] as num?)?.toDouble(),
       waist: (m['waist'] as num?)?.toDouble(),
+      hip: (m['hip'] as num?)?.toDouble(),
       length: (m['length'] as num?)?.toDouble(),
       sleeve: (m['sleeve'] as num?)?.toDouble(),
       shoulder: (m['shoulder'] as num?)?.toDouble(),

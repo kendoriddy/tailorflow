@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/home/home_shell.dart';
+import 'features/customers/customer_list_screen.dart';
 
 class TailorFlowApp extends ConsumerWidget {
   const TailorFlowApp({super.key});
@@ -13,7 +13,7 @@ class TailorFlowApp extends ConsumerWidget {
       title: 'TailorFlow NG',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const HomeShell(),
+      home: const CustomerListScreen(),
     );
   }
 }

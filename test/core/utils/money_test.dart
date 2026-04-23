@@ -9,7 +9,7 @@ void main() {
       0,
     );
     expect(
-      clampNonNegativeBalance(agreedAmountNgn: 10_000, paidSumNgn: 2500),
+      clampNonNegativeBalance(agreedAmountNgn: 10000, paidSumNgn: 2500),
       7500,
     );
   });

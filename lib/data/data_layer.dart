@@ -3,7 +3,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'billing/freemium_service.dart';
 import 'db/app_database.dart';
 import 'repos/customers_repository.dart';
-import 'repos/dashboard_repository.dart';
+import 'repos/notifications_repository.dart';
 import 'repos/orders_repository.dart';
 import 'repos/payments_repository.dart';
 import 'repos/settings_repository.dart';
@@ -17,7 +17,7 @@ class DataLayer {
     required this.customers,
     required this.orders,
     required this.payments,
-    required this.dashboard,
+    required this.notifications,
     required this.freemium,
     required this.settings,
     required this.sync,
@@ -28,7 +28,7 @@ class DataLayer {
   final CustomersRepository customers;
   final OrdersRepository orders;
   final PaymentsRepository payments;
-  final DashboardRepository dashboard;
+  final NotificationsRepository notifications;
   final FreemiumService freemium;
   final SettingsRepository settings;
   final SyncService sync;
@@ -39,7 +39,7 @@ class DataLayer {
     final customers = CustomersRepository(db, outbox);
     final orders = OrdersRepository(db, outbox);
     final payments = PaymentsRepository(db, outbox);
-    final dashboard = DashboardRepository(db);
+    final notifications = NotificationsRepository(db);
     final freemium = FreemiumService(db);
     final settings = SettingsRepository(db);
     final sync = SyncService(
@@ -47,17 +47,19 @@ class DataLayer {
       outbox: outbox,
       connectivity: Connectivity(),
     );
-    return DataLayer._(
+    final layer = DataLayer._(
       db: db,
       outbox: outbox,
       customers: customers,
       orders: orders,
       payments: payments,
-      dashboard: dashboard,
+      notifications: notifications,
       freemium: freemium,
       settings: settings,
       sync: sync,
     );
+    await layer.notifications.refreshDueReminders();
+    return layer;
   }
 
   Future<void> close() => db.close();
