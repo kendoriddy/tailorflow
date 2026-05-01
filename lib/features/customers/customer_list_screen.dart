@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/data_layer.dart';
 import '../../data/data_layer_provider.dart';
 import '../../data/models/customer_list_item.dart';
 import '../notifications/notifications_screen.dart';
@@ -8,6 +11,8 @@ import '../settings/backup_screen.dart';
 import '../settings/settings_screen.dart';
 import 'add_customer_screen.dart';
 import 'customer_profile_screen.dart';
+
+enum CustomerListMode { recent, alphabetical, dueFirst }
 
 class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
@@ -19,6 +24,8 @@ class CustomerListScreen extends ConsumerStatefulWidget {
 class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   final _search = TextEditingController();
   String _query = '';
+  CustomerListMode _listMode = CustomerListMode.recent;
+  bool _didScheduleDueToast = false;
 
   @override
   void initState() {
@@ -46,18 +53,45 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
         body: Center(child: Text('Could not open database.\n$e')),
       ),
       data: (layer) {
+        _maybeShowDueToast(layer);
         return Scaffold(
           appBar: AppBar(
             title: const Text('Customers'),
             actions: [
-              IconButton(
-                tooltip: 'Notifications',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => NotificationsScreen(layer: layer),
+              FutureBuilder<int>(
+                future: layer.notifications.unreadCount(),
+                builder: (context, snap) {
+                  final unread = snap.data ?? 0;
+                  return IconButton(
+                    tooltip: unread > 0
+                        ? 'Notifications ($unread unread)'
+                        : 'Notifications',
+                    onPressed: () async {
+                      await _openNotifications(layer);
+                    },
+                    icon: _NotificationBadge(unread: unread),
+                  );
+                },
+              ),
+              PopupMenuButton<CustomerListMode>(
+                tooltip: 'Sort customers',
+                icon: const Icon(Icons.filter_list),
+                initialValue: _listMode,
+                onSelected: (value) => setState(() => _listMode = value),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: CustomerListMode.recent,
+                    child: Text('Recently updated'),
                   ),
-                ),
-                icon: const Icon(Icons.notifications_outlined),
+                  PopupMenuItem(
+                    value: CustomerListMode.alphabetical,
+                    child: Text('Alphabetical (A-Z)'),
+                  ),
+                  PopupMenuItem(
+                    value: CustomerListMode.dueFirst,
+                    child: Text('Due orders first'),
+                  ),
+                ],
               ),
               IconButton(
                 tooltip: 'Sync now',
@@ -111,7 +145,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                     if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final rows = snap.data!;
+                    final rows = _applyListMode(snap.data!);
                     if (rows.isEmpty) {
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -152,7 +186,19 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                               maxLines: 2,
                             ),
                             isThreeLine: true,
-                            trailing: const Icon(Icons.chevron_right),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (c.hasDueSoonOrder)
+                                  Icon(
+                                    Icons.schedule,
+                                    size: 18,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.chevron_right),
+                              ],
+                            ),
                             onTap: () async {
                               await Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -197,6 +243,114 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
           ),
         );
       },
+    );
+  }
+
+  List<CustomerListItem> _applyListMode(List<CustomerListItem> input) {
+    final rows = [...input];
+    switch (_listMode) {
+      case CustomerListMode.recent:
+        return rows;
+      case CustomerListMode.alphabetical:
+        rows.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+        return rows;
+      case CustomerListMode.dueFirst:
+        rows.sort((a, b) {
+          final aRank = a.hasDueSoonOrder ? 0 : 1;
+          final bRank = b.hasDueSoonOrder ? 0 : 1;
+          if (aRank != bRank) return aRank.compareTo(bRank);
+
+          final aDueMs = a.nextDueOrderDate?.millisecondsSinceEpoch ??
+              DateTime(9999).millisecondsSinceEpoch;
+          final bDueMs = b.nextDueOrderDate?.millisecondsSinceEpoch ??
+              DateTime(9999).millisecondsSinceEpoch;
+          if (aDueMs != bDueMs) return aDueMs.compareTo(bDueMs);
+
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        });
+        return rows;
+    }
+  }
+
+  Future<void> _openNotifications(
+    DataLayer layer, {
+    NotificationListFilter initialFilter = NotificationListFilter.all,
+  }) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            NotificationsScreen(layer: layer, initialFilter: initialFilter),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  void _maybeShowDueToast(DataLayer layer) {
+    if (_didScheduleDueToast) return;
+    _didScheduleDueToast = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(() async {
+        final dueUnread = await layer.notifications.unreadDueCount();
+        if (!mounted || dueUnread <= 0) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$dueUnread order notification${dueUnread == 1 ? '' : 's'} due soon.',
+            ),
+            action: SnackBarAction(
+              label: 'View',
+              onPressed: () {
+                unawaited(
+                  _openNotifications(
+                    layer,
+                    initialFilter: NotificationListFilter.dueOnly,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }());
+    });
+  }
+}
+
+class _NotificationBadge extends StatelessWidget {
+  const _NotificationBadge({required this.unread});
+
+  final int unread;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.notifications_outlined),
+        if (unread > 0)
+          Positioned(
+            right: -7,
+            top: -6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.error,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              constraints: const BoxConstraints(minWidth: 18),
+              child: Text(
+                unread > 99 ? '99+' : '$unread',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onError,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

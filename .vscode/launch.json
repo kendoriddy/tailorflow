@@ -1,0 +1,54 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "TailorFlow (Chrome + Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://ymesilrfxjtyzfziokde.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_FEIXDMpKdVXBOL71DmOyYg_fzkSTCB8"
+      ]
+    },
+    {
+      "name": "TailorFlow (Android + Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://ymesilrfxjtyzfziokde.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_FEIXDMpKdVXBOL71DmOyYg_fzkSTCB8"
+      ]
+    },
+    {
+      "name": "TailorFlow (iOS + Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://ymesilrfxjtyzfziokde.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_FEIXDMpKdVXBOL71DmOyYg_fzkSTCB8"
+      ]
+    },
+    {
+      "name": "TailorFlow (Edge + Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "edge",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://ymesilrfxjtyzfziokde.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_FEIXDMpKdVXBOL71DmOyYg_fzkSTCB8"
+      ]
+    },
+    {
+      "name": "TailorFlow (Web Server + Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "web-server",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://ymesilrfxjtyzfziokde.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_FEIXDMpKdVXBOL71DmOyYg_fzkSTCB8"
+      ]
+    }
+  ]
+}

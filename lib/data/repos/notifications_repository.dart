@@ -19,7 +19,15 @@ class NotificationsRepository {
     return (rows.first['c'] as int?) ?? 0;
   }
 
-  Future<List<InAppNotificationView>> listAll() async {
+  Future<int> unreadDueCount() async {
+    final rows = await _db.raw.rawQuery(
+      "SELECT COUNT(*) AS c FROM notifications WHERE read_at IS NULL AND kind LIKE 'due_%'",
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
+  Future<List<InAppNotificationView>> listAll({bool dueOnly = false}) async {
+    final dueClause = dueOnly ? " AND n.kind LIKE 'due_%'" : '';
     final rows = await _db.raw.rawQuery('''
 SELECT n.*,
   c.name AS customer_name,
@@ -28,6 +36,7 @@ FROM notifications n
 JOIN customers c ON c.id = n.customer_id
 JOIN orders o ON o.id = n.order_id
 WHERE c.deleted_at IS NULL
+$dueClause
 ORDER BY (n.read_at IS NOT NULL) ASC, n.fire_on DESC
 ''');
 

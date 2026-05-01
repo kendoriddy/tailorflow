@@ -16,6 +16,11 @@ class CustomersRepository {
 
   static const _uuid = Uuid();
 
+  DateTime _startOfToday() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
   Future<List<CustomerListItem>> listSummary({String query = ''}) async {
     final q = query.trim();
     final norm = normalizePhoneDigits(q);
@@ -26,6 +31,19 @@ SELECT
   c.name AS name,
   c.phone AS phone,
   c.updated_at AS updated_at,
+  (
+    SELECT MIN(o.due_date)
+    FROM orders o
+    WHERE o.customer_id = c.id
+      AND o.status != ?
+  ) AS next_due_order_date,
+  IFNULL((
+    SELECT COUNT(*)
+    FROM orders o
+    WHERE o.customer_id = c.id
+      AND o.status != ?
+      AND o.due_date BETWEEN ? AND ?
+  ), 0) AS due_soon_count,
   IFNULL((
     SELECT SUM(
       MAX(
@@ -35,7 +53,6 @@ SELECT
     )
     FROM orders o
     WHERE o.customer_id = c.id
-      AND o.status != ?
   ), 0) AS owed_ngn,
   IFNULL((
     SELECT COUNT(*)
@@ -70,10 +87,16 @@ ORDER BY c.updated_at DESC
 ''', [
       OrderStatus.collected.wireName,
       OrderStatus.collected.wireName,
+      _startOfToday().millisecondsSinceEpoch,
+      _startOfToday()
+          .add(const Duration(days: 3, hours: 23, minutes: 59, seconds: 59))
+          .millisecondsSinceEpoch,
+      OrderStatus.collected.wireName,
     ]);
 
     final all = rows.map((m) {
       final dueMs = (m['last_order_due_date'] as int?);
+      final nextDueMs = (m['next_due_order_date'] as int?);
       final rawStatus = m['last_order_status'] as String?;
       return CustomerListItem(
         customerId: m['customer_id']! as String,
@@ -86,6 +109,10 @@ ORDER BY c.updated_at DESC
             dueMs == null ? null : DateTime.fromMillisecondsSinceEpoch(dueMs),
         lastOrderStatus:
             rawStatus == null ? null : OrderStatus.parse(rawStatus),
+        hasDueSoonOrder: ((m['due_soon_count'] as num?)?.toInt() ?? 0) > 0,
+        nextDueOrderDate: nextDueMs == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(nextDueMs),
       );
     }).toList();
     if (q.isEmpty) return all;

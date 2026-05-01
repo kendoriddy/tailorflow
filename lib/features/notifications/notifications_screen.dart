@@ -4,10 +4,17 @@ import '../../data/data_layer.dart';
 import '../../data/models/in_app_notification.dart';
 import '../customers/customer_profile_screen.dart';
 
+enum NotificationListFilter { all, dueOnly }
+
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key, required this.layer});
+  const NotificationsScreen({
+    super.key,
+    required this.layer,
+    this.initialFilter = NotificationListFilter.all,
+  });
 
   final DataLayer layer;
+  final NotificationListFilter initialFilter;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -15,15 +22,23 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late Future<List<InAppNotificationView>> _future;
+  late NotificationListFilter _filter;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.layer.notifications.listAll();
+    _filter = widget.initialFilter;
+    _future = widget.layer.notifications.listAll(
+      dueOnly: _filter == NotificationListFilter.dueOnly,
+    );
   }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.layer.notifications.listAll());
+    setState(() {
+      _future = widget.layer.notifications.listAll(
+        dueOnly: _filter == NotificationListFilter.dueOnly,
+      );
+    });
     await _future;
   }
 
@@ -33,10 +48,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
+          PopupMenuButton<NotificationListFilter>(
+            tooltip: 'Filter notifications',
+            initialValue: _filter,
+            onSelected: (value) async {
+              if (_filter == value) return;
+              setState(() => _filter = value);
+              await _reload();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: NotificationListFilter.all,
+                child: Text('All notifications'),
+              ),
+              PopupMenuItem(
+                value: NotificationListFilter.dueOnly,
+                child: Text('Due orders only'),
+              ),
+            ],
+            icon: const Icon(Icons.filter_list),
+          ),
           TextButton(
             onPressed: () async {
               await widget.layer.notifications.markAllRead();
               await _reload();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('All notifications marked as read.')),
+              );
             },
             child: const Text('Mark all read'),
           ),
@@ -50,7 +89,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
           final rows = snap.data!;
           if (rows.isEmpty) {
-            return const Center(child: Text('No notifications yet.'));
+            final text = _filter == NotificationListFilter.dueOnly
+                ? 'No due-order notifications yet.'
+                : 'No notifications yet.';
+            return Center(child: Text(text));
           }
           return RefreshIndicator(
             onRefresh: () async {
@@ -63,7 +105,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final n = rows[i];
+                final tileColor = n.isUnread
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.06)
+                    : null;
                 return ListTile(
+                  tileColor: tileColor,
+                  leading: Icon(
+                    n.isUnread
+                        ? Icons.mark_email_unread_outlined
+                        : Icons.drafts_outlined,
+                  ),
                   title: Text(
                     n.title,
                     style: TextStyle(
@@ -75,10 +126,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       Text('${n.body}\n${n.customerName} • ${n.orderTitle}'),
                   isThreeLine: true,
                   trailing: n.isUnread
-                      ? const Icon(Icons.circle, size: 10)
-                      : const SizedBox(width: 10),
+                      ? const Icon(Icons.fiber_manual_record, size: 10)
+                      : const Icon(Icons.done, size: 18),
                   onTap: () async {
-                    await widget.layer.notifications.markRead(n.id);
+                    if (n.isUnread) {
+                      await widget.layer.notifications.markRead(n.id);
+                    }
                     if (!context.mounted) return;
                     await Navigator.of(context).push(
                       MaterialPageRoute(

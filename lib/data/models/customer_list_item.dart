@@ -14,6 +14,8 @@ class CustomerListItem {
     required this.lastOrderTitle,
     required this.lastOrderDueDate,
     required this.lastOrderStatus,
+    required this.hasDueSoonOrder,
+    required this.nextDueOrderDate,
   });
 
   final String customerId;
@@ -24,6 +26,8 @@ class CustomerListItem {
   final String? lastOrderTitle;
   final DateTime? lastOrderDueDate;
   final OrderStatus? lastOrderStatus;
+  final bool hasDueSoonOrder;
+  final DateTime? nextDueOrderDate;
 
   Color statusColor(ColorScheme scheme) {
     if (totalOwedNgn > 0) return AppTheme.oweRed;
@@ -35,6 +39,22 @@ class CustomerListItem {
     final owe =
         totalOwedNgn > 0 ? 'Owes: ${formatNgn(totalOwedNgn)}' : 'Fully paid';
     if (lastOrderTitle == null || lastOrderDueDate == null) return owe;
-    return '$owe\nLast order: $lastOrderTitle (Due ${l10n.formatShortDate(lastOrderDueDate!)})';
+    final status = lastOrderStatus == null
+        ? 'Unknown'
+        : _statusLabel(lastOrderStatus!);
+    return '$owe\nLast order: $lastOrderTitle ($status • Due ${l10n.formatShortDate(lastOrderDueDate!)})';
+  }
+
+  String _statusLabel(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.booked:
+        return 'Booked';
+      case OrderStatus.cutting:
+        return 'Cutting';
+      case OrderStatus.ready:
+        return 'Ready';
+      case OrderStatus.collected:
+        return 'Collected';
+    }
   }
 }
