@@ -19,12 +19,6 @@ class CustomersRepository {
   Future<List<CustomerListItem>> listSummary({String query = ''}) async {
     final q = query.trim();
     final norm = normalizePhoneDigits(q);
-    final like = '%${q.replaceAll('%', '\\%')}%';
-
-    final where = q.isEmpty
-        ? 'c.deleted_at IS NULL'
-        : 'c.deleted_at IS NULL AND (c.name LIKE ? OR c.phone_norm LIKE ?)';
-    final args = q.isEmpty ? const <Object?>[] : <Object?>[like, '%$norm%'];
 
     final rows = await _db.raw.rawQuery('''
 SELECT
@@ -71,15 +65,14 @@ SELECT
     LIMIT 1
   ) AS last_order_status
 FROM customers c
-WHERE $where
+WHERE c.deleted_at IS NULL
 ORDER BY c.updated_at DESC
 ''', [
       OrderStatus.collected.wireName,
       OrderStatus.collected.wireName,
-      ...args,
     ]);
 
-    return rows.map((m) {
+    final all = rows.map((m) {
       final dueMs = (m['last_order_due_date'] as int?);
       final rawStatus = m['last_order_status'] as String?;
       return CustomerListItem(
@@ -95,6 +88,17 @@ ORDER BY c.updated_at DESC
             rawStatus == null ? null : OrderStatus.parse(rawStatus),
       );
     }).toList();
+    if (q.isEmpty) return all;
+    return all
+        .where(
+          (c) => _matchesCustomerQuery(
+            name: c.name,
+            phone: c.phone,
+            query: q,
+            normalizedQuery: norm,
+          ),
+        )
+        .toList();
   }
 
   Future<List<Customer>> search(String query) async {
@@ -103,14 +107,22 @@ ORDER BY c.updated_at DESC
       return listActive();
     }
     final norm = normalizePhoneDigits(q);
-    final like = '%${q.replaceAll('%', '\\%')}%';
     final rows = await _db.raw.query(
       'customers',
-      where: 'deleted_at IS NULL AND (name LIKE ? OR phone_norm LIKE ?)',
-      whereArgs: [like, '%$norm%'],
+      where: 'deleted_at IS NULL',
       orderBy: 'name COLLATE NOCASE ASC',
     );
-    return rows.map(_mapCustomer).toList();
+    final all = rows.map(_mapCustomer).toList();
+    return all
+        .where(
+          (c) => _matchesCustomerQuery(
+            name: c.name,
+            phone: c.phone,
+            query: q,
+            normalizedQuery: norm,
+          ),
+        )
+        .toList();
   }
 
   Future<List<Customer>> listActive() async {
@@ -316,5 +328,21 @@ ORDER BY c.updated_at DESC
       notes: m['notes'] as String?,
       updatedAt: DateTime.fromMillisecondsSinceEpoch(m['updated_at']! as int),
     );
+  }
+
+  bool _matchesCustomerQuery({
+    required String name,
+    required String? phone,
+    required String query,
+    required String normalizedQuery,
+  }) {
+    if (name.toLowerCase().contains(query.toLowerCase())) {
+      return true;
+    }
+    if (normalizedQuery.isEmpty) {
+      return false;
+    }
+    final phoneNormalized = normalizePhoneDigits(phone);
+    return phoneNormalized.contains(normalizedQuery);
   }
 }
