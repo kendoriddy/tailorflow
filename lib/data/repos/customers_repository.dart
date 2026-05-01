@@ -339,10 +339,46 @@ ORDER BY c.updated_at DESC
     if (name.toLowerCase().contains(query.toLowerCase())) {
       return true;
     }
-    if (normalizedQuery.isEmpty) {
+    final queryDigits = query.replaceAll(RegExp(r'\D'), '');
+    if (queryDigits.isEmpty) {
       return false;
     }
+    final phoneDigits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+    if (phoneDigits.isEmpty) {
+      return false;
+    }
+
     final phoneNormalized = normalizePhoneDigits(phone);
-    return phoneNormalized.contains(normalizedQuery);
+    final phoneVariants = <String>{
+      phoneDigits,
+      phoneNormalized,
+    };
+    if (phoneNormalized.startsWith('234') && phoneNormalized.length > 3) {
+      phoneVariants.add('0${phoneNormalized.substring(3)}');
+    }
+
+    final queryVariants = <String>{queryDigits};
+    if (normalizedQuery.isNotEmpty) {
+      queryVariants.add(normalizedQuery);
+      if (normalizedQuery.startsWith('234') && normalizedQuery.length > 3) {
+        queryVariants.add('0${normalizedQuery.substring(3)}');
+      }
+    }
+    if (queryDigits.startsWith('0') && queryDigits.length > 1) {
+      queryVariants.add('234${queryDigits.substring(1)}');
+    }
+    if (queryDigits.startsWith('234') && queryDigits.length > 3) {
+      queryVariants.add('0${queryDigits.substring(3)}');
+    }
+
+    for (final needle in queryVariants) {
+      if (needle.isEmpty) continue;
+      for (final haystack in phoneVariants) {
+        if (haystack.contains(needle)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
