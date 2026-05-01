@@ -43,7 +43,7 @@ class PaywallScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'You have reached the free limit (${kFreemiumCustomerLimit} active customers).',
+              'You have reached the free limit ($kFreemiumCustomerLimit active customers).',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),

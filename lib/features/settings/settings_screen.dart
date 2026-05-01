@@ -32,8 +32,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          ListTile(
-            title: const Text('Paywall flag (compile-time)'),
+          const ListTile(
+            title: Text('Paywall flag (compile-time)'),
             subtitle: Text(
               RemoteFlags.paywallEnabled
                   ? 'REMOTE_PAYWALL=true at build time'

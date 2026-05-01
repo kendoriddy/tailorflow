@@ -202,11 +202,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               return Scaffold(
                 appBar: AppBar(
                   title: Text(c.name),
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(48),
+                  bottom: const PreferredSize(
+                    preferredSize: Size.fromHeight(48),
                     child: Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: TabBar(
                             tabs: [
                               Tab(text: 'Measurements'),
