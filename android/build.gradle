@@ -8,6 +8,35 @@ allprojects {
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+
+    // Kotlin 2.2+ no longer supports language version 1.6. Some plugins (e.g. sentry_flutter) still
+    // set 1.6; bump to 1.9 for all Android modules so release Kotlin compiles.
+    afterEvaluate { project ->
+        if (!project.plugins.hasPlugin("com.android.application") && !project.plugins.hasPlugin("com.android.library")) {
+            return
+        }
+        try {
+            project.android.kotlinOptions {
+                languageVersion = "1.9"
+                apiVersion = "1.9"
+            }
+        } catch (Throwable ignored) {
+            // Non-Android or module without kotlinOptions; ignore.
+        }
+        // Also force compiler args on Kotlin compile tasks (covers cases where android.kotlinOptions is ignored).
+        project.tasks.configureEach { task ->
+            def n = task.name
+            if (!n.startsWith("compile") || !n.endsWith("Kotlin")) {
+                return
+            }
+            try {
+                task.kotlinOptions {
+                    freeCompilerArgs += ["-language-version", "1.9", "-api-version", "1.9"]
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+    }
 }
 
 tasks.register("clean", Delete) {
