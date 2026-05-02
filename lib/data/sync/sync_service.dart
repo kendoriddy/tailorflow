@@ -3,10 +3,27 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../db/app_database.dart';
 import 'outbox_repository.dart';
+
+class SyncReport {
+  const SyncReport({
+    required this.success,
+    required this.message,
+    this.pushed = 0,
+    this.pulled = 0,
+    this.pending = 0,
+  });
+
+  final bool success;
+  final String message;
+  final int pushed;
+  final int pulled;
+  final int pending;
+}
 
 /// Flushes local outbox when connectivity returns. Remote sink is optional
 /// (Supabase) and degrades gracefully when not configured.
@@ -24,9 +41,11 @@ class SyncService {
   final Connectivity _connectivity;
 
   StreamSubscription<List<ConnectivityResult>>? _sub;
+  Timer? _timer;
   bool _flushing = false;
 
   void start() {
+    _timer?.cancel();
     _sub?.cancel();
     _sub = _connectivity.onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
@@ -34,35 +53,82 @@ class SyncService {
         unawaited(flushOutbox());
       }
     });
+    _timer = Timer.periodic(const Duration(minutes: 2), (_) {
+      unawaited(flushOutbox());
+    });
     unawaited(flushOutbox());
   }
 
   Future<void> dispose() async {
+    _timer?.cancel();
+    _timer = null;
     await _sub?.cancel();
     _sub = null;
   }
 
   /// Exposed for UI "Sync now" without waiting on connectivity changes.
-  Future<void> flushOutbox() async {
-    if (_flushing) return;
+  Future<SyncReport> flushOutbox() async {
+    if (_flushing) {
+      final pending = (await _outbox.pendingOps()).length;
+      return SyncReport(
+        success: true,
+        message: 'Sync already in progress.',
+        pending: pending,
+      );
+    }
+    final connectivity = await _connectivity.checkConnectivity();
+    final isOnline = connectivity.any((r) => r != ConnectivityResult.none);
+    if (!isOnline) {
+      final pending = (await _outbox.pendingOps()).length;
+      return SyncReport(
+        success: false,
+        message: 'No network. Pending sync items: $pending.',
+        pending: pending,
+      );
+    }
+
     _flushing = true;
     try {
       final client = _maybeSupabase();
       if (client == null) {
         // Keep outbox pending until Supabase is configured; avoids dropping events.
-        return;
+        final pending = (await _outbox.pendingOps()).length;
+        return SyncReport(
+          success: false,
+          message:
+              'Supabase is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY.',
+          pending: pending,
+        );
       }
       final ops = await _outbox.pendingOps();
+      var pushed = 0;
       for (final op in ops) {
         final id = op['id']! as String;
         try {
           await _applyRemote(client, op);
           await _outbox.markProcessed(id);
+          pushed++;
         } catch (e, st) {
           debugPrint('TailorFlow sync failed: $e\n$st');
-          break;
+          final pending = (await _outbox.pendingOps()).length;
+          return SyncReport(
+            success: false,
+            message: 'Sync failed: ${_toReadableError(e)}',
+            pushed: pushed,
+            pending: pending,
+          );
         }
       }
+      final pulled = await _pullFromRemote(client);
+      final pending = (await _outbox.pendingOps()).length;
+      return SyncReport(
+        success: true,
+        message:
+            'Sync complete. Uploaded $pushed change${pushed == 1 ? '' : 's'}, downloaded $pulled row${pulled == 1 ? '' : 's'}.',
+        pushed: pushed,
+        pulled: pulled,
+        pending: pending,
+      );
     } finally {
       _flushing = false;
     }
@@ -104,5 +170,120 @@ class SyncService {
       default:
         debugPrint('Unknown outbox op: $type');
     }
+  }
+
+  Future<int> _pullFromRemote(SupabaseClient client) async {
+    var total = 0;
+    total += await _pullCustomers(client);
+    total += await _pullMeasurementProfiles(client);
+    total += await _pullOrders(client);
+    total += await _pullPayments(client);
+    return total;
+  }
+
+  Future<int> _pullCustomers(SupabaseClient client) async {
+    final rows = (await client.from('customers').select(
+      'id, name, phone, phone_norm, created_at, updated_at, deleted_at',
+    )) as List<dynamic>;
+    for (final row in rows) {
+      final m = row as Map<String, dynamic>;
+      await _db.raw.insert(
+        'customers',
+        {
+          'id': m['id'],
+          'name': m['name'],
+          'phone': m['phone'],
+          'phone_norm': m['phone_norm'] ?? '',
+          'created_at': m['created_at'],
+          'updated_at': m['updated_at'],
+          'deleted_at': m['deleted_at'],
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    return rows.length;
+  }
+
+  Future<int> _pullMeasurementProfiles(SupabaseClient client) async {
+    final rows = (await client.from('measurement_profiles').select(
+      'id, customer_id, label, chest, waist, hip, length, sleeve, shoulder, neck, inseam, notes, updated_at',
+    )) as List<dynamic>;
+    for (final row in rows) {
+      final m = row as Map<String, dynamic>;
+      await _db.raw.insert(
+        'measurement_profiles',
+        {
+          'id': m['id'],
+          'customer_id': m['customer_id'],
+          'label': m['label'],
+          'chest': m['chest'],
+          'waist': m['waist'],
+          'hip': m['hip'],
+          'length': m['length'],
+          'sleeve': m['sleeve'],
+          'shoulder': m['shoulder'],
+          'neck': m['neck'],
+          'inseam': m['inseam'],
+          'notes': m['notes'],
+          'updated_at': m['updated_at'],
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    return rows.length;
+  }
+
+  Future<int> _pullOrders(SupabaseClient client) async {
+    final rows = (await client.from('orders').select(
+      'id, customer_id, title, fabric_note, due_date, status, agreed_amount_ngn, created_at, updated_at',
+    )) as List<dynamic>;
+    for (final row in rows) {
+      final m = row as Map<String, dynamic>;
+      await _db.raw.insert(
+        'orders',
+        {
+          'id': m['id'],
+          'customer_id': m['customer_id'],
+          'title': m['title'],
+          'fabric_note': m['fabric_note'],
+          'due_date': m['due_date'],
+          'status': m['status'],
+          'agreed_amount_ngn': m['agreed_amount_ngn'],
+          'created_at': m['created_at'],
+          'updated_at': m['updated_at'],
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    return rows.length;
+  }
+
+  Future<int> _pullPayments(SupabaseClient client) async {
+    final rows = (await client.from('payments').select(
+      'id, order_id, amount_ngn, paid_at, note',
+    )) as List<dynamic>;
+    for (final row in rows) {
+      final m = row as Map<String, dynamic>;
+      await _db.raw.insert(
+        'payments',
+        {
+          'id': m['id'],
+          'order_id': m['order_id'],
+          'amount_ngn': m['amount_ngn'],
+          'paid_at': m['paid_at'],
+          'note': m['note'],
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    return rows.length;
+  }
+
+  String _toReadableError(Object error) {
+    if (error is PostgrestException) {
+      return error.message;
+    }
+    final text = error.toString().trim();
+    return text.isEmpty ? 'unknown error' : text;
   }
 }

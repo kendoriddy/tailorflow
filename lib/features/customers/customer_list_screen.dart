@@ -96,14 +96,10 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
               IconButton(
                 tooltip: 'Sync now',
                 onPressed: () async {
-                  await layer.sync.flushOutbox();
+                  final report = await layer.sync.flushOutbox();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Sync check finished. Pending items remain if cloud backup is not configured.',
-                      ),
-                    ),
+                    SnackBar(content: Text(report.message)),
                   );
                 },
                 icon: const Icon(Icons.cloud_sync_outlined),

@@ -33,13 +33,14 @@ class _BackupScreenState extends State<BackupScreen> {
       // MVP: no OTP transport wired here. When Supabase Auth is enabled, replace
       // this with signInWithOtp using the E.164 formatted phone number.
       await Future<void>.delayed(const Duration(milliseconds: 250));
-      await widget.layer.sync.flushOutbox();
+      final report = await widget.layer.sync.flushOutbox();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'OTP sending is not wired in this MVP build. '
-            'Configure Supabase Auth + SMS provider, then call signInWithOtp.',
+            'Configure Supabase Auth + SMS provider, then call signInWithOtp. '
+            '${report.message}',
           ),
         ),
       );
