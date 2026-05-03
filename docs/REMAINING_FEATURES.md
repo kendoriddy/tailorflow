@@ -2,7 +2,7 @@
 
 This document lists **what is not done yet** relative to the current codebase and the product roadmap (`docs/TODOS_PHASES_2_4.md`). Use it as a single backlog view; detailed phase notes stay in the roadmap file.
 
-**Last updated:** 2026-05-01
+**Last updated:** 2026-05-03
 
 ---
 
@@ -17,6 +17,7 @@ Roughly in place today:
 - **WhatsApp helpers**: templates / launcher utilities.
 - **Optional**: Sentry, notifications scaffolding (see code under `lib/features/notifications/` and `lib/data/repos/notifications_repository.dart`).
 - **Platforms**: Android, iOS, Linux, macOS, Windows, and **Web** (web uses IndexedDB-backed sqlite; `web/sqflite_sw.js` + `web/sqlite3.wasm` are committed).
+- **In-app feedback (MVP)**: Settings → **Send feedback** — category (bug / idea / other), free-text details, app version + platform; mailto to the configured address (default in code); optional **Supabase insert** into `app_feedback` when sync keys are baked in and migration `002_app_feedback.sql` is applied (for a future admin UI). Subjects use a `[TailorFlow NG] …` prefix for filtering.
 
 ---
 
@@ -49,7 +50,7 @@ These are **stubbed or minimal** in code today:
 
 ## Phase 2 — immediate post-MVP (weeks 4–8)
 
-*Source: `docs/TODOS_PHASES_2_4.md`*
+_Source: `docs/TODOS_PHASES_2_4.md`_
 
 ### Photos (styles / fabric)
 
@@ -80,11 +81,17 @@ These are **stubbed or minimal** in code today:
 - Permissions + record/playback UI; attach to customer/order; sync like photos.
 - Optional transcription (later / Phase 4 tie-in).
 
+### In-app feedback — follow-ups (optional)
+
+- **Done (backend capture)**: rows in `public.app_feedback` when Supabase is configured (see Phase 5 for viewing).
+- Optional screenshot or “attach last error” with explicit consent (pairs with cross-cutting “send logs”).
+- Link from prominent surfaces beyond Settings (e.g. overflow menu on the home screen) if analytics show low discovery.
+
 ---
 
 ## Phase 3 — growth (months 3–6)
 
-*Source: `docs/TODOS_PHASES_2_4.md`*
+_Source: `docs/TODOS_PHASES_2_4.md`_
 
 ### Monetization: lifetime purchase
 
@@ -114,7 +121,7 @@ These are **stubbed or minimal** in code today:
 
 ## Phase 4 — vision (year 1–2)
 
-*Source: `docs/TODOS_PHASES_2_4.md`*
+_Source: `docs/TODOS_PHASES_2_4.md`_
 
 ### AI-assisted measurements
 
@@ -138,13 +145,25 @@ These are **stubbed or minimal** in code today:
 
 ---
 
+## Phase 5 — admin & internal tools
+
+_Planned after core tailor-facing roadmap; last phase for operator-facing work._
+
+### TailorFlow admin dashboard
+
+- Operator authentication separate from tailor shop accounts (do not expose service role keys in the tailor app; admin app uses server-side or scoped credentials).
+- **Feedback inbox**: read and triage rows from `app_feedback` (submitted from the app when Supabase + migration `002_app_feedback.sql` are in use); optional status, assignment, notes.
+- Later: subscription health, pilot metrics, feature-flag UI — scope as needed.
+
+---
+
 ## Cross-cutting (any phase)
 
-*Source: `docs/TODOS_PHASES_2_4.md`*
+_Source: `docs/TODOS_PHASES_2_4.md`_
 
 - Performance budgets (cold start, scroll, DB on low-end Android).
 - Crash-free session targets; staged rollout.
-- Support channel; in-app “send logs” with consent.
+- Support channel (partially covered by Settings → Send feedback); in-app “send logs” with consent.
 - Play Console hygiene (staged releases, ANRs, pre-launch).
 - Security: RLS review, secrets handling in CI, keys not in repo.
 
