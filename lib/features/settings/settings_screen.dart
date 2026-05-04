@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/billing/remote_flags.dart';
 import '../../data/data_layer.dart';
+import 'feedback_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.layer});
@@ -91,6 +92,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          ListTile(
+            leading: const Icon(Icons.feedback_outlined),
+            title: const Text('Send feedback'),
+            subtitle: const Text('Bugs, ideas, and requests for the team'),
+            onTap: () {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const FeedbackScreen(),
+                ),
+              );
+            },
+          ),
+          const Divider(),
           const ListTile(
             title: Text('Paywall flag (compile-time)'),
             subtitle: Text(
@@ -134,9 +148,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
               }
-              final ok = info.configured &&
-                  info.userId != null &&
-                  info.shopId != null;
+              final ok =
+                  info.configured && info.userId != null && info.shopId != null;
               final chipLabel = ok ? 'Connected' : 'Attention';
               final chipColor = ok ? Colors.green : Colors.orange;
               final subtitle = [

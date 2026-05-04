@@ -29,7 +29,17 @@ flutter run --dart-define=SUPABASE_URL=https://YOUR.supabase.co \
   --dart-define=SUPABASE_ANON_KEY=YOUR_ANON_KEY
 ```
 
-See [`supabase/migrations/001_init.sql`](supabase/migrations/001_init.sql) for example RLS-oriented tables (adjust to your tenancy model).
+**Release APK / App Bundle:** compile-time defines are **not** read from a `.env` file. Whatever you pass to `flutter build` is baked into that binary. Example:
+
+```bash
+flutter build apk --release \
+  --dart-define=SUPABASE_URL=https://YOUR.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=YOUR_ANON_KEY
+```
+
+Use the same flags for `flutter build appbundle`. If testers install an APK built **without** those defines, `SUPABASE_URL` / `SUPABASE_ANON_KEY` are empty strings in the app and **sync will not run**—symptoms match “sync not working.” CI/CD (Codemagic, GitHub Actions, etc.) should pass the same `--dart-define=...` arguments you use locally.
+
+See [`supabase/migrations/001_init.sql`](supabase/migrations/001_init.sql) for example RLS-oriented tables (adjust to your tenancy model). Apply [`supabase/migrations/002_app_feedback.sql`](supabase/migrations/002_app_feedback.sql) if you want in-app feedback rows stored in Supabase (for a future admin dashboard).
 
 ## Optional: Sentry
 
