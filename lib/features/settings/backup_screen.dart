@@ -6,8 +6,8 @@ import '../../data/data_layer.dart';
 
 /// Optional backup/sync entry point.
 ///
-/// Full phone OTP flows are product work; this screen documents the intended
-/// behavior and validates that Supabase is configured when dart-defines are set.
+/// Auth now uses email/phone + password in-app. This screen remains a
+/// quick sync diagnostics page.
 class BackupScreen extends StatefulWidget {
   const BackupScreen({super.key, required this.layer});
 
@@ -30,17 +30,14 @@ class _BackupScreenState extends State<BackupScreen> {
   Future<void> _sendOtpStub() async {
     setState(() => _busy = true);
     try {
-      // MVP: no OTP transport wired here. When Supabase Auth is enabled, replace
-      // this with signInWithOtp using the E.164 formatted phone number.
+      // Keep a manual sync trigger here for troubleshooting.
       await Future<void>.delayed(const Duration(milliseconds: 250));
       final report = await widget.layer.sync.flushOutbox();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'OTP sending is not wired in this MVP build. '
-            'Configure Supabase Auth + SMS provider, then call signInWithOtp. '
-            '${report.message}',
+            'Manual sync executed. ${report.message}',
           ),
         ),
       );
@@ -99,12 +96,12 @@ class _BackupScreenState extends State<BackupScreen> {
                       height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Send OTP (stub)'),
+                  : const Text('Run manual sync'),
             ),
             const SizedBox(height: 16),
             Text(
               'Next steps for production:\n'
-              '• Enable Supabase Auth phone provider.\n'
+              '• Enable Supabase email/phone auth providers.\n'
               '• Map authenticated user to shop_id.\n'
               '• Apply RLS policies from supabase/migrations.',
               style: Theme.of(context).textTheme.bodySmall,

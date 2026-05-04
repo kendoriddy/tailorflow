@@ -7,7 +7,6 @@ import '../../data/data_layer.dart';
 import '../../data/data_layer_provider.dart';
 import '../../data/models/customer_list_item.dart';
 import '../notifications/notifications_screen.dart';
-import '../settings/backup_screen.dart';
 import '../settings/settings_screen.dart';
 import 'add_customer_screen.dart';
 import 'customer_profile_screen.dart';
@@ -103,13 +102,6 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                   );
                 },
                 icon: const Icon(Icons.cloud_sync_outlined),
-              ),
-              IconButton(
-                tooltip: 'Backup & sync',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => BackupScreen(layer: layer)),
-                ),
-                icon: const Icon(Icons.shield_outlined),
               ),
               IconButton(
                 tooltip: 'Settings',
@@ -222,12 +214,12 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                     height: 56,
                     child: FilledButton.icon(
                       onPressed: () async {
-                        final ok = await Navigator.of(context).push<bool>(
+                        await Navigator.of(context).push<bool>(
                           MaterialPageRoute(
                             builder: (_) => AddCustomerScreen(layer: layer),
                           ),
                         );
-                        if (ok == true && mounted) setState(() {});
+                        if (mounted) setState(() {});
                       },
                       icon: const Icon(Icons.person_add_alt_1),
                       label: const Text('+ New Customer'),

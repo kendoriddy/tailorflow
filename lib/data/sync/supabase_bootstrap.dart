@@ -17,24 +17,16 @@ Future<void> initSupabaseIfConfigured() async {
   await Supabase.initialize(url: url, anonKey: anon);
   final client = Supabase.instance.client;
 
+  // Ensures the signed-in user has a shop + membership row for shop-scoped RLS.
   if (client.auth.currentSession == null) {
-    try {
-      await client.auth.signInAnonymously();
-      if (kDebugMode) {
-        debugPrint('TailorFlow: signed in anonymously for sync.');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          'TailorFlow: anonymous auth failed. '
-          'Enable Anonymous sign-ins in Supabase Auth. Error: $e',
-        );
-      }
-      return;
+    if (kDebugMode) {
+      debugPrint(
+        'TailorFlow: Supabase configured but no signed-in user yet.',
+      );
     }
+    return;
   }
 
-  // Ensures the signed-in user has a shop + membership row for shop-scoped RLS.
   try {
     await client.rpc('bootstrap_current_user_shop');
   } catch (e) {

@@ -157,6 +157,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
+          ListTile(
+            title: const Text('Account'),
+            subtitle: const Text('Sign out from this device.'),
+            trailing: TextButton(
+              onPressed: () async {
+                try {
+                  final client = Supabase.instance.client;
+                  await client.auth.signOut();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Signed out.')),
+                  );
+                  await _reload();
+                } catch (_) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Supabase is not configured for this build.'),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Sign out'),
+            ),
+          ),
+          const Divider(),
           const ListTile(
             title: Text('Privacy'),
             subtitle: Text('See docs/PRIVACY_PILOT.md in the repository.'),
