@@ -84,6 +84,10 @@ create table if not exists public.customers (
   name text not null,
   phone text,
   phone_norm text not null default '',
+  birth_day integer,
+  birth_month integer,
+  birth_year integer,
+  birthday_consent integer not null default 0,
   created_at bigint not null,
   updated_at bigint not null,
   deleted_at bigint
@@ -133,6 +137,10 @@ create table if not exists public.payments (
 
 -- Bring older schemas forward safely
 alter table public.customers add column if not exists shop_id uuid;
+alter table public.customers add column if not exists birth_day integer;
+alter table public.customers add column if not exists birth_month integer;
+alter table public.customers add column if not exists birth_year integer;
+alter table public.customers add column if not exists birthday_consent integer not null default 0;
 alter table public.measurement_profiles add column if not exists shop_id uuid;
 alter table public.orders add column if not exists shop_id uuid;
 alter table public.payments add column if not exists shop_id uuid;

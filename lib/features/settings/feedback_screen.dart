@@ -1,10 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/config/feedback_config.dart';
 import '../../data/feedback/feedback_remote.dart';
 
 enum FeedbackCategory {
@@ -128,50 +125,18 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         appVersion: _packageInfo?.version,
         platform: _platformLabel(),
       );
-
-      if (kFeedbackMailtoAddress.isEmpty) {
-        await Clipboard.setData(ClipboardData(text: '$subject\n\n$body'));
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              savedRemote
-                  ? 'Saved for the team. Feedback address is not set — message copied to clipboard.'
-                  : 'Feedback address is not set. Message copied — paste into email or WhatsApp.',
-            ),
-          ),
-        );
-        return;
-      }
-
-      final uri = Uri(
-        scheme: 'mailto',
-        path: kFeedbackMailtoAddress,
-        queryParameters: <String, String>{
-          'subject': subject,
-          'body': body,
-        },
-      );
-
-      final launched = await launchUrl(uri);
       if (!mounted) return;
-      if (!launched) {
-        await Clipboard.setData(ClipboardData(text: '$subject\n\n$body'));
-        if (!mounted) return;
+      if (savedRemote) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              savedRemote
-                  ? 'Saved for the team. Could not open mail — feedback copied to clipboard.'
-                  : 'Could not open mail. Feedback copied to clipboard instead.',
-            ),
-          ),
+          const SnackBar(content: Text('Feedback sent successfully.')),
         );
-      } else if (savedRemote) {
+        _message.clear();
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('Saved for the team. Finish sending in your email app.'),
+            content: Text(
+              'Could not send feedback to backend. Check internet and try again.',
+            ),
           ),
         );
       }
@@ -222,11 +187,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            kFeedbackMailtoAddress.isEmpty
-                ? 'Add a feedback email in the app config, or use Send to copy the message to the clipboard.'
-                : 'Opens your email app with To: $kFeedbackMailtoAddress. '
-                    'If backup & sync is enabled, a copy is also saved for the TailorFlow team. '
-                    'Subjects start with [TailorFlow NG].',
+            'Feedback is sent directly to TailorFlow backend. '
+            'No email app is required.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

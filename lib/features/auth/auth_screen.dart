@@ -31,11 +31,14 @@ class _AuthScreenState extends State<AuthScreen> {
   bool get _looksLikeEmail => _identifier.text.trim().contains('@');
   bool get _isPhoneInput => !_looksLikeEmail;
 
-  String? _identifierHintError(String identifier) {
+  String? _identifierHintError(String identifier, {required bool signUp}) {
     if (identifier.isEmpty) return 'Enter email or phone number.';
     if (_looksLikeEmail) {
       final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(identifier);
       return ok ? null : 'Enter a valid email address.';
+    }
+    if (signUp) {
+      return 'Sign up is email-only. Enter a valid email address.';
     }
     final digits = identifier.replaceAll(RegExp(r'\D'), '');
     if (digits.length < 10) {
@@ -65,7 +68,8 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _submit() async {
     final identifier = _identifier.text.trim();
     final password = _password.text;
-    final identifierErr = _identifierHintError(identifier);
+    final identifierErr =
+        _identifierHintError(identifier, signUp: _isSignUp);
     final passwordErr = _passwordHintError(password);
     if (identifierErr != null || passwordErr != null) {
       setState(() => _error = identifierErr ?? passwordErr);
@@ -85,15 +89,8 @@ class _AuthScreenState extends State<AuthScreen> {
     final client = Supabase.instance.client;
     try {
       if (_isSignUp) {
-        final AuthResponse res;
-        if (_looksLikeEmail) {
-          res = await client.auth.signUp(email: identifier, password: password);
-        } else {
-          res = await client.auth.signUp(
-            phone: _toE164Phone(identifier),
-            password: password,
-          );
-        }
+        final AuthResponse res =
+            await client.auth.signUp(email: identifier, password: password);
         if (res.session == null) {
           setState(() {
             _info =
@@ -243,11 +240,16 @@ class _AuthScreenState extends State<AuthScreen> {
                     : TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.username],
                 decoration: InputDecoration(
-                  labelText: 'Email or phone',
-                  hintText: 'name@email.com or 08012345678',
-                  helperText: _isPhoneInput
-                      ? 'Phone accepts 080..., 234..., or +234...'
-                      : 'Use the same email used during sign up.',
+                  labelText:
+                      _isSignUp ? 'Email address' : 'Email or phone',
+                  hintText: _isSignUp
+                      ? 'name@email.com'
+                      : 'name@email.com or 08012345678',
+                  helperText: _isSignUp
+                      ? 'Sign up supports email only.'
+                      : _isPhoneInput
+                          ? 'Phone accepts 080..., 234..., or +234...'
+                          : 'Use the same email used during sign up.',
                 ),
               ),
               const SizedBox(height: 12),

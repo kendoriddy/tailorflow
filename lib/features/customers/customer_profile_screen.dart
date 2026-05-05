@@ -12,6 +12,7 @@ import '../../data/models/payment.dart';
 import '../whatsapp/whatsapp_launcher.dart';
 import '../whatsapp/whatsapp_templates.dart';
 import 'add_measurement_screen.dart';
+import 'customer_feedback_request_screen.dart';
 import 'edit_order_screen.dart';
 import 'edit_payment_screen.dart';
 import 'new_order_screen.dart';
@@ -322,6 +323,8 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Phone: ${phone ?? '—'}'),
           const SizedBox(height: 4),
+          Text('Birthday: ${customer.birthdayDisplay ?? 'Not set'}'),
+          const SizedBox(height: 4),
           Text(
             'Total Owed: ${formatNgn(totalOwedNgn)}',
             style: TextStyle(
@@ -540,6 +543,22 @@ class _OrdersTab extends StatelessWidget {
                           : null,
                       icon: const Icon(Icons.payments_outlined),
                       label: const Text('Remind payment'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final ok = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => CustomerFeedbackRequestScreen(
+                              layer: layer,
+                              customer: customer,
+                              order: o,
+                            ),
+                          ),
+                        );
+                        if (ok == true) await onChanged();
+                      },
+                      icon: const Icon(Icons.reviews_outlined),
+                      label: const Text('Request feedback'),
                     ),
                   ],
                 ),

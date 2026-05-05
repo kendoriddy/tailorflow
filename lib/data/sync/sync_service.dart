@@ -240,7 +240,7 @@ class SyncService {
 
   Future<int> _pullCustomers(SupabaseClient client) async {
     final rows = (await client.from('customers').select(
-          'id, name, phone, phone_norm, created_at, updated_at, deleted_at',
+          'id, name, phone, phone_norm, birth_day, birth_month, birth_year, birthday_consent, created_at, updated_at, deleted_at',
         )) as List<dynamic>;
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
@@ -251,6 +251,10 @@ class SyncService {
           'name': m['name'],
           'phone': m['phone'],
           'phone_norm': m['phone_norm'] ?? '',
+          'birth_day': m['birth_day'],
+          'birth_month': m['birth_month'],
+          'birth_year': m['birth_year'],
+          'birthday_consent': m['birthday_consent'] ?? 0,
           'created_at': m['created_at'],
           'updated_at': m['updated_at'],
           'deleted_at': m['deleted_at'],

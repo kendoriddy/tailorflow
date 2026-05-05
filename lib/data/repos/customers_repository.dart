@@ -180,6 +180,10 @@ ORDER BY c.updated_at DESC
       'name': name.trim(),
       'phone': phone?.trim(),
       'phone_norm': norm,
+      'birth_day': null,
+      'birth_month': null,
+      'birth_year': null,
+      'birthday_consent': 0,
       'created_at': now,
       'updated_at': now,
       'deleted_at': null,
@@ -192,6 +196,10 @@ ORDER BY c.updated_at DESC
         'name': name.trim(),
         'phone': phone?.trim(),
         'phone_norm': norm,
+        'birth_day': null,
+        'birth_month': null,
+        'birth_year': null,
+        'birthday_consent': 0,
         'created_at': now,
         'updated_at': now,
       },
@@ -207,6 +215,10 @@ ORDER BY c.updated_at DESC
         'name': c.name.trim(),
         'phone': c.phone?.trim(),
         'phone_norm': normalizePhoneDigits(c.phone),
+        'birth_day': c.birthDay,
+        'birth_month': c.birthMonth,
+        'birth_year': c.birthYear,
+        'birthday_consent': c.birthdayConsent ? 1 : 0,
         'updated_at': now,
       },
       where: 'id = ?',
@@ -220,6 +232,50 @@ ORDER BY c.updated_at DESC
         'name': c.name.trim(),
         'phone': c.phone?.trim(),
         'phone_norm': normalizePhoneDigits(c.phone),
+        'birth_day': c.birthDay,
+        'birth_month': c.birthMonth,
+        'birth_year': c.birthYear,
+        'birthday_consent': c.birthdayConsent ? 1 : 0,
+        'updated_at': now,
+      },
+    );
+  }
+
+  Future<void> upsertBirthdayDetails({
+    required String customerId,
+    required int birthDay,
+    required int birthMonth,
+    int? birthYear,
+    required bool consent,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _db.raw.update(
+      'customers',
+      {
+        'birth_day': birthDay,
+        'birth_month': birthMonth,
+        'birth_year': birthYear,
+        'birthday_consent': consent ? 1 : 0,
+        'updated_at': now,
+      },
+      where: 'id = ?',
+      whereArgs: [customerId],
+    );
+    final c = await getById(customerId);
+    if (c == null) return;
+    await _outbox.enqueue(
+      type: OutboxOpType.upsertCustomer,
+      entityId: c.id,
+      payload: {
+        'id': c.id,
+        'name': c.name.trim(),
+        'phone': c.phone?.trim(),
+        'phone_norm': normalizePhoneDigits(c.phone),
+        'created_at': c.createdAt.millisecondsSinceEpoch,
+        'birth_day': birthDay,
+        'birth_month': birthMonth,
+        'birth_year': birthYear,
+        'birthday_consent': consent ? 1 : 0,
         'updated_at': now,
       },
     );
@@ -333,6 +389,10 @@ ORDER BY c.updated_at DESC
       phoneNorm: (m['phone_norm'] as String?) ?? '',
       createdAt: DateTime.fromMillisecondsSinceEpoch(m['created_at']! as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(m['updated_at']! as int),
+      birthDay: (m['birth_day'] as num?)?.toInt(),
+      birthMonth: (m['birth_month'] as num?)?.toInt(),
+      birthYear: (m['birth_year'] as num?)?.toInt(),
+      birthdayConsent: ((m['birthday_consent'] as num?)?.toInt() ?? 0) == 1,
       deletedAt: m['deleted_at'] == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(m['deleted_at']! as int),

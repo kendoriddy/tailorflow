@@ -11,7 +11,7 @@ class AppDatabase {
   final Database _db;
 
   static const _name = 'tailorflow.db';
-  static const _version = 3;
+  static const _version = 4;
 
   static Future<AppDatabase> open() async {
     configureSqfliteForCurrentPlatform();
@@ -38,6 +38,10 @@ CREATE TABLE customers (
   name TEXT NOT NULL,
   phone TEXT,
   phone_norm TEXT NOT NULL DEFAULT '',
+  birth_day INTEGER,
+  birth_month INTEGER,
+  birth_year INTEGER,
+  birthday_consent INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER
@@ -168,6 +172,15 @@ CREATE TABLE notifications (
           );
           await db.execute(
             'CREATE INDEX idx_notifications_fire ON notifications(fire_on);',
+          );
+        }
+        if (oldVersion < 4) {
+          await db.execute('ALTER TABLE customers ADD COLUMN birth_day INTEGER;');
+          await db.execute(
+              'ALTER TABLE customers ADD COLUMN birth_month INTEGER;');
+          await db.execute('ALTER TABLE customers ADD COLUMN birth_year INTEGER;');
+          await db.execute(
+            'ALTER TABLE customers ADD COLUMN birthday_consent INTEGER NOT NULL DEFAULT 0;',
           );
         }
       },
