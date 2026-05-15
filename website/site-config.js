@@ -25,7 +25,7 @@ window.SITE_CONFIG = {
   // —— Download & contact ——
   // GitHub Release APK: see docs/BRANDING.md § "APK from GitHub Releases"
   apkUrl:
-    "https://github.com/kendoriddy/glory-transit/releases/download/tailorflow/tailorFlow_v0.1.apk",
+    "https://github.com/kendoriddy/tailorflow/releases/download/first/tailorFlow_v0.1.apk",
 
   whatsappPhone: "2348060119837",
   whatsappMessage: "Hi, I'm interested in {appName}",
