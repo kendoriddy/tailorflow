@@ -156,3 +156,4 @@ Same as Option A step 5 (`siteUrl`, `sitemap.xml`).
 2. Update `sitemap.xml` hosts.
 3. Add the new domain in your host (Vercel/Netlify/Pages) and update DNS.
 4. Keep the old subdomain redirecting for a while (optional).
+5. End
