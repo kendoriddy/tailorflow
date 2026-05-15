@@ -1,4 +1,4 @@
-# TailorFlow NG — remaining features & work
+# TailorFlow — remaining features & work
 
 This document lists **what is not done yet** relative to the current codebase and the product roadmap (`docs/TODOS_PHASES_2_4.md`). Use it as a single backlog view; detailed phase notes stay in the roadmap file.
 
@@ -17,7 +17,7 @@ Roughly in place today:
 - **WhatsApp helpers**: templates / launcher utilities.
 - **Optional**: Sentry, notifications scaffolding (see code under `lib/features/notifications/` and `lib/data/repos/notifications_repository.dart`).
 - **Platforms**: Android, iOS, Linux, macOS, Windows, and **Web** (web uses IndexedDB-backed sqlite; `web/sqflite_sw.js` + `web/sqlite3.wasm` are committed).
-- **In-app feedback (MVP)**: Settings → **Send feedback** — category (bug / idea / other), free-text details, app version + platform; mailto to the configured address (default in code); optional **Supabase insert** into `app_feedback` when sync keys are baked in and migration `002_app_feedback.sql` is applied (for a future admin UI). Subjects use a `[TailorFlow NG] …` prefix for filtering.
+- **In-app feedback (MVP)**: Settings → **Send feedback** — category (bug / idea / other), free-text details, app version + platform; mailto to the configured address (default in code); optional **Supabase insert** into `app_feedback` when sync keys are baked in and migration `002_app_feedback.sql` is applied (for a future admin UI). Subjects use a `[TailorFlow] …` prefix for filtering.
 
 ---
 

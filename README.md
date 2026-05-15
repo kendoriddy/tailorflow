@@ -1,6 +1,18 @@
-# TailorFlow NG
+# TailorFlow
 
 Offline-first Flutter app for small tailoring shops: customers, measurements, orders, payments, and WhatsApp reminders.
+
+Display name is **TailorFlow** (no regional suffix). Package IDs remain `tailorflow_ng` / `ng.tailorflow.*` for store continuity. To rename later, see [`docs/BRANDING.md`](docs/BRANDING.md).
+
+## Web presence
+
+| Surface                   | Technology                                | Purpose                                                                                  |
+| ------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Marketing / SEO           | [`website/`](website/) — `site-config.js` | e.g. `tailorflow.kennyonifade.com` — deploy via [`website/DEPLOY.md`](website/DEPLOY.md) |
+| Tailor dashboard (future) | Flutter web on a subdomain                | Signed-in analytics — reuses Supabase auth and app code                                  |
+| Operator admin (future)   | Separate web app                          | Internal feedback inbox, metrics — see `docs/REMAINING_FEATURES.md`                      |
+
+Static HTML stays best for **discoverability** (fast load, crawlable content). Flutter web is best for **authenticated product UI** after users sign in.
 
 ## Prerequisites
 

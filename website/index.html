@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TailorFlow — Tailoring shop app</title>
+    <meta
+      name="description"
+      content="Offline-first mobile app for tailoring shops."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://tailorflow.kennyonifade.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="TailorFlow" />
+    <meta
+      property="og:description"
+      content="Offline-first app for customers, orders, payments, and WhatsApp reminders."
+    />
+    <meta property="og:url" content="https://tailorflow.kennyonifade.com/" />
+    <meta property="og:site_name" content="TailorFlow" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TailorFlow" />
+    <meta
+      name="twitter:description"
+      content="Offline-first tailoring business app for small shops."
+    />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="site-config.js"></script>
+    <script src="apply-brand.js"></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "TailorFlow",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Android",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Offline-first app for tailoring shops."
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="logo" href="/" data-brand="appName">TailorFlow</a>
+        <nav aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#screenshots">Screenshots</a>
+          <a class="nav-cta" href="#download">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">For tailoring shops</p>
+            <h1>Run your shop from your phone — even without internet</h1>
+            <p class="lead" data-brand-template="heroLead">
+              TailorFlow helps you track customers, measurements, orders, and
+              payments.
+            </p>
+            <div class="hero-actions" id="download">
+              <a class="btn btn-primary" href="#" id="apk-link" rel="noopener">
+                Download APK
+              </a>
+              <a
+                class="btn btn-secondary"
+                href="#"
+                id="whatsapp-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Chat on WhatsApp
+              </a>
+            </div>
+          </div>
+          <div class="hero-visual" aria-hidden="true">
+            <div class="phone-frame">
+              <img
+                src="assets/screenshot-hero.png"
+                alt="App on a phone"
+                data-brand-alt="app"
+                data-brand-alt-template="{appName} app on a phone"
+                width="320"
+                height="640"
+                onerror="
+                  this.style.display = 'none';
+                  this.nextElementSibling.hidden = false;
+                "
+              />
+              <div class="screenshot-placeholder" hidden>
+                Add screenshot-hero.png
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="features" id="features">
+        <div class="container">
+          <h2>Built for the shop floor</h2>
+          <ul class="feature-grid">
+            <li>
+              <h3>Offline-first</h3>
+              <p>
+                Keep working when data is slow or unavailable. Sync when you are
+                back online.
+              </p>
+            </li>
+            <li>
+              <h3>Customers &amp; measurements</h3>
+              <p>Profiles, notes, and measurement history in one place.</p>
+            </li>
+            <li>
+              <h3>Orders &amp; payments</h3>
+              <p>
+                Track what is owed, record deposits, and see balances at a
+                glance.
+              </p>
+            </li>
+            <li>
+              <h3>WhatsApp handoff</h3>
+              <p>
+                Prefilled polite messages for ready dresses and payment
+                reminders.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="screenshots" id="screenshots">
+        <div class="container">
+          <h2 data-brand-template="screenshotsHeading">
+            See TailorFlow in action
+          </h2>
+          <div class="screenshot-row">
+            <figure>
+              <img
+                src="assets/screenshot-1.png"
+                alt="Customer list"
+                data-brand-alt-template="Customer list in {appName}"
+                width="280"
+                height="560"
+                loading="lazy"
+                onerror="this.parentElement.classList.add('is-placeholder')"
+              />
+              <figcaption>Customers</figcaption>
+            </figure>
+            <figure>
+              <img
+                src="assets/screenshot-2.png"
+                alt="Order details"
+                data-brand-alt-template="Order details in {appName}"
+                width="280"
+                height="560"
+                loading="lazy"
+                onerror="this.parentElement.classList.add('is-placeholder')"
+              />
+              <figcaption>Orders</figcaption>
+            </figure>
+            <figure>
+              <img
+                src="assets/screenshot-3.png"
+                alt="WhatsApp reminder"
+                data-brand-alt-template="WhatsApp reminder in {appName}"
+                width="280"
+                height="560"
+                loading="lazy"
+                onerror="this.parentElement.classList.add('is-placeholder')"
+              />
+              <figcaption>WhatsApp</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta-band">
+        <div class="container cta-inner">
+          <h2 data-brand-template="ctaHeading">Ready to try TailorFlow?</h2>
+          <p>
+            Download the Android app or message us on WhatsApp for pilot access.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#" data-apk-link>Download APK</a>
+            <a
+              class="btn btn-secondary"
+              href="#"
+              data-whatsapp-link
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              WhatsApp us
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          &copy; <span id="year"></span>
+          <span data-brand="appName">TailorFlow</span>
+        </p>
+        <p><a href="privacy.html">Privacy</a></p>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/brand.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/auth/update_password_screen.dart';
@@ -13,7 +14,7 @@ class TailorFlowApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'TailorFlow NG',
+      title: Brand.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       home: const _AuthGate(),

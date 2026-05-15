@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../core/brand.dart';
+
 import '../../data/feedback/feedback_remote.dart';
 
 enum FeedbackCategory {
@@ -20,15 +22,15 @@ enum FeedbackCategory {
     }
   }
 
-  /// Gmail-friendly filter: search for "TailorFlow NG" or "[TailorFlow NG]".
+  /// Gmail-friendly filter: search for "TailorFlow" or "[TailorFlow]".
   String get mailSubject {
     switch (this) {
       case FeedbackCategory.bug:
-        return '[TailorFlow NG] Bug';
+        return '${Brand.feedbackSubjectPrefix} Bug';
       case FeedbackCategory.idea:
-        return '[TailorFlow NG] Idea / need';
+        return '${Brand.feedbackSubjectPrefix} Idea / need';
       case FeedbackCategory.other:
-        return '[TailorFlow NG] Feedback';
+        return '${Brand.feedbackSubjectPrefix} Feedback';
     }
   }
 }
@@ -154,7 +156,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Report bugs, ideas, or anything that would help TailorFlow work better for you.',
+            'Report bugs, ideas, or anything that would help ${Brand.appName} work better for you.',
             style: theme.textTheme.bodyLarge,
           ),
           const SizedBox(height: 20),
@@ -187,7 +189,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Feedback is sent directly to TailorFlow backend. '
+            'Feedback is sent directly to the ${Brand.appName} team. '
             'No email app is required.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,

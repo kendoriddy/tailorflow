@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="TailorFlow NG"
+        android:label="TailorFlow"
         android:name="${applicationName}"
         android:icon="@drawable/ic_launcher">
         <activity

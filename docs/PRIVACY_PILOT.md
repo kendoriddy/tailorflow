@@ -1,4 +1,4 @@
-# TailorFlow NG — pilot privacy notes (NDPR-oriented)
+# TailorFlow — pilot privacy notes (NDPR-oriented)
 
 This document is **not legal advice**. It is an engineering checklist for early pilots in Nigeria.
 

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy</title>
+    <meta name="robots" content="index, follow" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="site-config.js"></script>
+    <script src="apply-brand.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const name =
+          (window.SITE_CONFIG && window.SITE_CONFIG.appName) || "TailorFlow";
+        document.title = "Privacy — " + name;
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="logo" href="/" data-brand="appName">TailorFlow</a>
+      </div>
+    </header>
+    <main class="container" style="padding: 3rem 0; max-width: 720px">
+      <h1>Privacy</h1>
+      <p data-brand-template="privacyLead">
+        TailorFlow stores customer and order data on your device first.
+      </p>
+      <p>
+        For pilot details, see the app repository
+        <code>docs/PRIVACY_PILOT.md</code>. This page is a public summary;
+        update it before production launch.
+      </p>
+      <p><a href="/">Back to home</a></p>
+    </main>
+  </body>
+</html>
