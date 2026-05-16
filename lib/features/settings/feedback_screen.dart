@@ -1,10 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/brand.dart';
-
 import '../../data/feedback/feedback_remote.dart';
+
+/// Opens the in-app feedback form from anywhere in the app.
+void openFeedbackScreen(BuildContext context) {
+  Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(builder: (_) => const FeedbackScreen()),
+  );
+}
 
 enum FeedbackCategory {
   bug,
@@ -105,6 +112,19 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     return buf.toString();
   }
 
+  Future<bool> _openFeedbackEmail({
+    required String subject,
+    required String body,
+  }) async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: Brand.feedbackEmail,
+      query:
+          'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
+    );
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   Future<void> _submit() async {
     final text = _message.text.trim();
     if (text.isEmpty) {
@@ -133,11 +153,27 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           const SnackBar(content: Text('Feedback sent successfully.')),
         );
         _message.clear();
-      } else {
+        return;
+      }
+
+      final openedEmail =
+          await _openFeedbackEmail(subject: subject, body: body);
+      if (!mounted) return;
+      if (openedEmail) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Could not send feedback to backend. Check internet and try again.',
+              'Could not reach the server. Your email app was opened instead.',
+            ),
+          ),
+        );
+        _message.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not send feedback. Check your connection or email '
+              '${Brand.feedbackEmail} directly.',
             ),
           ),
         );
@@ -189,8 +225,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Feedback is sent directly to the ${Brand.appName} team. '
-            'No email app is required.',
+            'Feedback is sent to the ${Brand.appName} team when you are online. '
+            'If that fails, your email app opens as a backup.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

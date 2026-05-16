@@ -2,10 +2,12 @@
 
 When you choose a new product name, update **both** places so the app and website stay in sync.
 
-| Surface                                 | File                                                                               |
-| --------------------------------------- | ---------------------------------------------------------------------------------- |
-| Flutter app (labels, feedback subjects) | [`lib/core/brand.dart`](../lib/core/brand.dart) → `Brand.appName`                  |
-| Marketing website                       | [`website/site-config.js`](../website/site-config.js) → `appName` (+ related copy) |
+| Surface                                 | File                                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Flutter app (labels, feedback subjects) | [`lib/core/brand.dart`](../lib/core/brand.dart) → `Brand.appName`                                      |
+| Marketing website                       | [`website/site-config.js`](../website/site-config.js) → `appName` (+ related copy)                     |
+| Privacy policy URL (Play Store + app)   | [`lib/core/brand.dart`](../lib/core/brand.dart) → `privacyPolicyUrl`; host at `{siteUrl}/privacy.html` |
+| Privacy contact email                   | `Brand.privacyContactEmail` and `site-config.js` → `privacyContactEmail`                               |
 
 Package IDs (`tailorflow_ng`, `ng.tailorflow.*`) can stay as-is until you ship a new store listing.
 
