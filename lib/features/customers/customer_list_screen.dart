@@ -7,6 +7,7 @@ import '../../data/data_layer.dart';
 import '../../data/data_layer_provider.dart';
 import '../../data/models/customer_list_item.dart';
 import '../notifications/notifications_screen.dart';
+import '../settings/feedback_screen.dart';
 import '../settings/settings_screen.dart';
 import 'add_customer_screen.dart';
 import 'customer_profile_screen.dart';
@@ -104,6 +105,11 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                   );
                 },
                 icon: const Icon(Icons.cloud_sync_outlined),
+              ),
+              IconButton(
+                tooltip: 'Send feedback',
+                onPressed: () => openFeedbackScreen(context),
+                icon: const Icon(Icons.feedback_outlined),
               ),
               IconButton(
                 tooltip: 'Settings',

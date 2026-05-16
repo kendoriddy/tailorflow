@@ -1,4 +1,4 @@
-# TailorFlow NG — pilot QA matrix (MVP)
+# TailorFlow — pilot QA matrix (MVP)
 
 Run these checks on a **real mid-range Android phone** before handing builds to tailors.
 

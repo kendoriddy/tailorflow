@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy</title>
+    <meta
+      name="description"
+      content="Privacy policy for TailorFlow — what data the app stores and how it is used."
+    />
+    <meta name="robots" content="index, follow" />
+    <link
+      rel="canonical"
+      href="https://tailorflow.kennyonifade.com/privacy.html"
+    />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="site-config.js"></script>
+    <script src="apply-brand.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const cfg = window.SITE_CONFIG || {};
+        const name = cfg.appName || "TailorFlow";
+        document.title = "Privacy Policy — " + name;
+        const email = cfg.privacyContactEmail || "";
+        const updated = cfg.privacyLastUpdated || "";
+        document.querySelectorAll("[data-privacy-email]").forEach((el) => {
+          if (email) {
+            el.href = "mailto:" + email;
+            el.textContent = email;
+          }
+        });
+        const dateEl = document.querySelector("[data-privacy-updated]");
+        if (dateEl && updated) dateEl.textContent = updated;
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="logo" href="/" data-brand="appName">TailorFlow</a>
+        <nav aria-label="Primary">
+          <a href="/">Home</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container policy-page">
+      <h1>Privacy Policy</h1>
+      <p class="policy-meta">
+        <span data-brand="appName">TailorFlow</span> · Last updated:
+        <time data-privacy-updated>2026-05-16</time>
+      </p>
+
+      <p class="policy-note">
+        This policy describes how the
+        <span data-brand="appName">TailorFlow</span>
+        mobile app handles information. It is written in plain language and is
+        not legal advice. If you need formal counsel, consult a qualified lawyer
+        in your jurisdiction.
+      </p>
+
+      <h2>Who this applies to</h2>
+      <p>
+        <span data-brand="appName">TailorFlow</span> is a business tool for
+        tailoring shops. <strong>Shop owners and staff</strong> use the app to
+        manage their business. <strong>Customer data</strong> (names, phone
+        numbers, measurements, orders, and payments) is entered by the shop
+        about its own customers.
+      </p>
+      <p>
+        The shop using the app is responsible for telling its customers what
+        data it collects and why. We provide the software; each shop decides
+        what to record.
+      </p>
+
+      <h2>Data the app can store</h2>
+      <p>Depending on how you use the app, this may include:</p>
+      <ul>
+        <li>
+          <strong>Customer identity:</strong> name and optional phone number
+        </li>
+        <li>
+          <strong>Measurements and notes:</strong> body measurements and
+          free-text notes linked to a customer
+        </li>
+        <li>
+          <strong>Orders:</strong> style or title, fabric notes, due dates,
+          status
+        </li>
+        <li><strong>Payments:</strong> amounts and dates related to orders</li>
+        <li>
+          <strong>Account data (optional):</strong> email or phone and password
+          if you sign in for cloud backup
+        </li>
+        <li>
+          <strong>Feedback you send us:</strong> bug reports, ideas, or ratings
+          you choose to submit from the app
+        </li>
+      </ul>
+
+      <h2>Where data is stored</h2>
+      <p data-brand-template="privacyLead">
+        Data is stored on your device first (offline-first). If you enable cloud
+        backup and sign in, a copy may sync to our database provider (Supabase)
+        over encrypted connections (HTTPS/TLS).
+      </p>
+
+      <h2>How data is used</h2>
+      <ul>
+        <li>To run the shop: customers, orders, balances, and reminders</li>
+        <li>
+          To open WhatsApp with a pre-filled message when
+          <strong>you</strong> tap send (we do not send messages automatically)
+        </li>
+        <li>To back up and sync your data when cloud sync is configured</li>
+        <li>To improve the product when you voluntarily send feedback</li>
+        <li>
+          To diagnose crashes if error reporting (e.g. Sentry) is enabled in
+          your build
+        </li>
+      </ul>
+      <p>We do not sell customer lists from your shop to advertisers.</p>
+
+      <h2>Sharing with others</h2>
+      <ul>
+        <li>
+          <strong>WhatsApp / phone apps:</strong> only when you choose to
+          message a customer
+        </li>
+        <li>
+          <strong>Cloud host (Supabase):</strong> if sync is on — subject to
+          their terms and security practices
+        </li>
+        <li>
+          <strong>Crash reporting (Sentry):</strong> only if enabled in your app
+          build; may include device and app version metadata
+        </li>
+        <li>
+          <strong>Legal requirements:</strong> if required by law or to protect
+          rights and safety
+        </li>
+      </ul>
+
+      <h2>Security</h2>
+      <p>
+        We use industry-standard transport encryption for network calls. Cloud
+        data should be protected with row-level access rules so one shop cannot
+        read another shop’s rows. You are responsible for keeping your device
+        and sign-in credentials secure.
+      </p>
+
+      <h2>How long we keep data</h2>
+      <p>
+        Data on your device remains until you delete it in the app or uninstall
+        the app. Cloud copies remain until you delete them or ask us to help
+        remove your account data, subject to reasonable backup retention by our
+        providers.
+      </p>
+
+      <h2>Your choices and rights</h2>
+      <p>
+        Depending on where you live, you may have rights to access, correct, or
+        delete personal data. Shop owners can:
+      </p>
+      <ul>
+        <li>
+          Edit or delete customers, measurements, orders, and payments in the
+          app
+        </li>
+        <li>Turn off cloud sync by signing out or not configuring Supabase</li>
+        <li>Contact us for help with account or cloud data requests</li>
+      </ul>
+      <p>
+        Email:
+        <a href="mailto:privacy@kennyonifade.com" data-privacy-email
+          >privacy@kennyonifade.com</a
+        >
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        The app is intended for business use by adults running a shop. It is not
+        directed at children under 16.
+      </p>
+
+      <h2>International use</h2>
+      <p>
+        The app may be used in different countries. We aim to respect applicable
+        privacy laws (including Nigeria’s NDPR where it applies). If you use the
+        app outside Nigeria, local laws may also apply to you and your
+        customers.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        We may update this policy from time to time. We will post the new
+        version on this page and update the “Last updated” date above.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy or your data:
+        <a href="mailto:privacy@kennyonifade.com" data-privacy-email
+          >privacy@kennyonifade.com</a
+        >
+      </p>
+
+      <p><a href="/">← Back to home</a></p>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          &copy; <span id="year"></span>
+          <span data-brand="appName">TailorFlow</span>
+        </p>
+      </div>
+    </footer>
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

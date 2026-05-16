@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/brand.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/data_layer.dart';
@@ -36,7 +38,7 @@ class PaywallScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Upgrade TailorFlow')),
+      appBar: AppBar(title: const Text('Upgrade ${Brand.appName}')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -55,7 +57,8 @@ class PaywallScreen extends StatelessWidget {
             const SizedBox(height: 20),
             FilledButton(
               onPressed: () async {
-                final uri = Uri.parse('https://paystack.com/docs/payments/subscriptions');
+                final uri = Uri.parse(
+                    'https://paystack.com/docs/payments/subscriptions');
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               },
               child: const Text('Open Paystack subscription docs'),

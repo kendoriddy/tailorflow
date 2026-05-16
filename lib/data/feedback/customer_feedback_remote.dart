@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/brand.dart';
+
 class CustomerFeedbackRemote {
   CustomerFeedbackRemote._();
 
@@ -34,19 +36,22 @@ class CustomerFeedbackRemote {
       ..writeln('Order ID: ${orderId ?? '-'}')
       ..writeln('Order: ${orderTitle ?? '-'}')
       ..writeln('Rating: $rating/5')
-      ..writeln('Birthday: $birthDay/$birthMonth/${birthYear ?? '(year omitted)'}')
+      ..writeln(
+          'Birthday: $birthDay/$birthMonth/${birthYear ?? '(year omitted)'}')
       ..writeln('Birthday offers consent: ${birthdayConsent ? 'yes' : 'no'}')
-      ..writeln('Comment: ${comment?.trim().isNotEmpty == true ? comment!.trim() : '-'}');
+      ..writeln(
+          'Comment: ${comment?.trim().isNotEmpty == true ? comment!.trim() : '-'}');
 
     try {
       await client.from('app_feedback').insert(<String, dynamic>{
         'category': 'customer_feedback',
-        'subject': '[TailorFlow NG] Customer Feedback $rating/5',
+        'subject': '${Brand.feedbackSubjectPrefix} Customer Feedback $rating/5',
         'message': comment?.trim().isNotEmpty == true
             ? comment!.trim()
             : 'No additional comment',
         'body_context': summary.toString(),
-        if (appVersion != null && appVersion.isNotEmpty) 'app_version': appVersion,
+        if (appVersion != null && appVersion.isNotEmpty)
+          'app_version': appVersion,
         'platform': platform,
       });
       return true;

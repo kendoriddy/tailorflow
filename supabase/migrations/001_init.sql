@@ -1,4 +1,4 @@
--- TailorFlow NG Supabase bootstrap:
+-- TailorFlow Supabase bootstrap:
 -- - shop-scoped multi-tenant schema
 -- - auth-based row-level security
 -- - helper RPC to auto-provision shop membership per signed-in user

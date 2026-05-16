@@ -1,4 +1,4 @@
-# TailorFlow NG — roadmap todos (Phases 2–4)
+# TailorFlow — roadmap todos (Phases 2–4)
 
 Checklist-style backlog for work **after** the Phase 1 MVP. Items are grouped by phase as in the April 2026 product doc; order within a phase can change based on pilot feedback.
 
