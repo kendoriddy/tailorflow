@@ -9,6 +9,7 @@ enum OutboxOpType {
   upsertMeasurement,
   upsertOrder,
   upsertPayment,
+  upsertOrderAttachment,
   deleteCustomer,
 }
 

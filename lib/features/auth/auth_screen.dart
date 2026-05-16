@@ -28,23 +28,10 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  bool get _looksLikeEmail => _identifier.text.trim().contains('@');
-  bool get _isPhoneInput => !_looksLikeEmail;
-
-  String? _identifierHintError(String identifier, {required bool signUp}) {
-    if (identifier.isEmpty) return 'Enter email or phone number.';
-    if (_looksLikeEmail) {
-      final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(identifier);
-      return ok ? null : 'Enter a valid email address.';
-    }
-    if (signUp) {
-      return 'Sign up is email-only. Enter a valid email address.';
-    }
-    final digits = identifier.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 10) {
-      return 'Phone is too short. Example: 08012345678';
-    }
-    return null;
+  String? _identifierHintError(String identifier) {
+    if (identifier.isEmpty) return 'Enter email address.';
+    final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(identifier);
+    return ok ? null : 'Enter a valid email address.';
   }
 
   String? _passwordHintError(String password) {
@@ -53,23 +40,10 @@ class _AuthScreenState extends State<AuthScreen> {
     return null;
   }
 
-  String _toE164Phone(String raw) {
-    final t = raw.trim();
-    if (t.startsWith('+')) return t;
-    final digits = t.replaceAll(RegExp(r'\D'), '');
-    if (digits.startsWith('234')) return '+$digits';
-    if (digits.startsWith('0') && digits.length == 11) {
-      return '+234${digits.substring(1)}';
-    }
-    if (digits.length == 10) return '+234$digits';
-    return '+$digits';
-  }
-
   Future<void> _submit() async {
     final identifier = _identifier.text.trim();
     final password = _password.text;
-    final identifierErr =
-        _identifierHintError(identifier, signUp: _isSignUp);
+    final identifierErr = _identifierHintError(identifier);
     final passwordErr = _passwordHintError(password);
     if (identifierErr != null || passwordErr != null) {
       setState(() => _error = identifierErr ?? passwordErr);
@@ -101,17 +75,10 @@ class _AuthScreenState extends State<AuthScreen> {
           widget.onAuthenticated();
         }
       } else {
-        if (_looksLikeEmail) {
-          await client.auth.signInWithPassword(
-            email: identifier,
-            password: password,
-          );
-        } else {
-          await client.auth.signInWithPassword(
-            phone: _toE164Phone(identifier),
-            password: password,
-          );
-        }
+        await client.auth.signInWithPassword(
+          email: identifier,
+          password: password,
+        );
         await client.rpc('bootstrap_current_user_shop');
         widget.onAuthenticated();
       }
@@ -127,9 +94,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _showForgotPasswordDialog() async {
-    final emailCtl = TextEditingController(
-      text: _looksLikeEmail ? _identifier.text.trim() : '',
-    );
+    final emailCtl = TextEditingController(text: _identifier.text.trim());
     String? dialogError;
     var sending = false;
 
@@ -235,21 +200,12 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: _identifier,
-                keyboardType: _isPhoneInput
-                    ? TextInputType.phone
-                    : TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.username],
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
                 decoration: InputDecoration(
-                  labelText:
-                      _isSignUp ? 'Email address' : 'Email or phone',
-                  hintText: _isSignUp
-                      ? 'name@email.com'
-                      : 'name@email.com or 08012345678',
-                  helperText: _isSignUp
-                      ? 'Sign up supports email only.'
-                      : _isPhoneInput
-                          ? 'Phone accepts 080..., 234..., or +234...'
-                          : 'Use the same email used during sign up.',
+                  labelText: 'Email address',
+                  hintText: 'name@email.com',
+                  helperText: 'Use your registered email address.',
                 ),
               ),
               const SizedBox(height: 12),

@@ -135,6 +135,16 @@ create table if not exists public.payments (
   note text
 );
 
+create table if not exists public.order_attachments (
+  id text primary key,
+  shop_id uuid not null default public.current_shop_id()
+    references public.shops (id) on delete restrict,
+  order_id text not null references public.orders (id) on delete cascade,
+  image_base64 text not null,
+  mime_type text not null default 'image/jpeg',
+  created_at bigint not null
+);
+
 -- Bring older schemas forward safely
 alter table public.customers add column if not exists shop_id uuid;
 alter table public.customers add column if not exists birth_day integer;
@@ -144,6 +154,7 @@ alter table public.customers add column if not exists birthday_consent integer n
 alter table public.measurement_profiles add column if not exists shop_id uuid;
 alter table public.orders add column if not exists shop_id uuid;
 alter table public.payments add column if not exists shop_id uuid;
+alter table public.order_attachments add column if not exists shop_id uuid;
 alter table public.measurement_profiles add column if not exists hip double precision;
 
 do $$
@@ -165,6 +176,11 @@ begin
   end;
   begin
     alter table public.payments
+      alter column shop_id set default public.current_shop_id();
+  exception when others then null;
+  end;
+  begin
+    alter table public.order_attachments
       alter column shop_id set default public.current_shop_id();
   exception when others then null;
   end;
@@ -201,6 +217,12 @@ begin
   from public.orders o
   where p.order_id = o.id
     and p.shop_id is null;
+
+  update public.order_attachments a
+  set shop_id = o.shop_id
+  from public.orders o
+  where a.order_id = o.id
+    and a.shop_id is null;
 end $$;
 
 -- Optional guard: prevent cross-shop links
@@ -233,6 +255,14 @@ begin
     ) then
       raise exception 'payments.order_id must belong to same shop_id';
     end if;
+  elsif TG_TABLE_NAME = 'order_attachments' then
+    if not exists (
+      select 1 from public.orders o
+      where o.id = NEW.order_id
+        and o.shop_id = NEW.shop_id
+    ) then
+      raise exception 'order_attachments.order_id must belong to same shop_id';
+    end if;
   end if;
   return NEW;
 end;
@@ -253,6 +283,11 @@ create trigger trg_payments_same_shop
 before insert or update on public.payments
 for each row execute function public.enforce_same_shop_relationships();
 
+drop trigger if exists trg_order_attachments_same_shop on public.order_attachments;
+create trigger trg_order_attachments_same_shop
+before insert or update on public.order_attachments
+for each row execute function public.enforce_same_shop_relationships();
+
 -- Indexes
 create index if not exists idx_customers_shop_id on public.customers(shop_id);
 create index if not exists idx_customers_phone_norm on public.customers(phone_norm);
@@ -264,12 +299,15 @@ create index if not exists idx_orders_customer_id on public.orders(customer_id);
 create index if not exists idx_orders_due_date on public.orders(due_date);
 create index if not exists idx_payments_shop_id on public.payments(shop_id);
 create index if not exists idx_payments_order_id on public.payments(order_id);
+create index if not exists idx_order_attachments_shop_id on public.order_attachments(shop_id);
+create index if not exists idx_order_attachments_order_id on public.order_attachments(order_id);
 
 -- Enforce not-null after backfill
 alter table public.customers alter column shop_id set not null;
 alter table public.measurement_profiles alter column shop_id set not null;
 alter table public.orders alter column shop_id set not null;
 alter table public.payments alter column shop_id set not null;
+alter table public.order_attachments alter column shop_id set not null;
 
 -- RLS
 alter table public.shops enable row level security;
@@ -278,6 +316,7 @@ alter table public.customers enable row level security;
 alter table public.measurement_profiles enable row level security;
 alter table public.orders enable row level security;
 alter table public.payments enable row level security;
+alter table public.order_attachments enable row level security;
 
 drop policy if exists shops_member_select on public.shops;
 create policy shops_member_select
@@ -376,5 +415,25 @@ with check (
     select 1 from public.shop_memberships m
     where m.user_id = auth.uid()
       and m.shop_id = payments.shop_id
+  )
+);
+
+drop policy if exists order_attachments_shop_scope on public.order_attachments;
+create policy order_attachments_shop_scope
+on public.order_attachments
+for all
+to authenticated
+using (
+  exists (
+    select 1 from public.shop_memberships m
+    where m.user_id = auth.uid()
+      and m.shop_id = order_attachments.shop_id
+  )
+)
+with check (
+  exists (
+    select 1 from public.shop_memberships m
+    where m.user_id = auth.uid()
+      and m.shop_id = order_attachments.shop_id
   )
 );

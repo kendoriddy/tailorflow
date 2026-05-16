@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/utils/money.dart';
 import '../db/app_database.dart';
+import '../models/order_attachment.dart';
 import '../models/order_money_view.dart';
 import '../models/order_row.dart';
 import '../models/order_status.dart';
@@ -27,16 +28,34 @@ FROM orders o
 WHERE o.customer_id = ?
 ORDER BY o.due_date ASC
 ''', [customerId]);
+    final orderIds = rows.map((m) => m['id']! as String).toList();
+    final attachmentsByOrder = await _attachmentsByOrderIds(orderIds);
 
     return rows.map((m) {
       final order = _mapOrder(m);
+      final orderWithAttachments = OrderRow(
+        id: order.id,
+        customerId: order.customerId,
+        title: order.title,
+        fabricNote: order.fabricNote,
+        dueDate: order.dueDate,
+        status: order.status,
+        agreedAmountNgn: order.agreedAmountNgn,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        attachments: attachmentsByOrder[order.id] ?? const <OrderAttachment>[],
+      );
       final paid = (m['paid_ngn'] as num?)?.toInt() ?? 0;
       final bal = (m['balance_ngn'] as num?)?.toInt() ??
           clampNonNegativeBalance(
             agreedAmountNgn: order.agreedAmountNgn,
             paidSumNgn: paid,
           );
-      return OrderMoneyView(order: order, paidNgn: paid, balanceNgn: bal);
+      return OrderMoneyView(
+        order: orderWithAttachments,
+        paidNgn: paid,
+        balanceNgn: bal,
+      );
     }).toList();
   }
 
@@ -47,7 +66,25 @@ ORDER BY o.due_date ASC
       whereArgs: [customerId],
       orderBy: 'due_date ASC',
     );
-    return rows.map(_mapOrder).toList();
+    final orders = rows.map(_mapOrder).toList();
+    final attachmentsByOrder =
+        await _attachmentsByOrderIds(orders.map((o) => o.id).toList());
+    return orders
+        .map(
+          (o) => OrderRow(
+            id: o.id,
+            customerId: o.customerId,
+            title: o.title,
+            fabricNote: o.fabricNote,
+            dueDate: o.dueDate,
+            status: o.status,
+            agreedAmountNgn: o.agreedAmountNgn,
+            createdAt: o.createdAt,
+            updatedAt: o.updatedAt,
+            attachments: attachmentsByOrder[o.id] ?? const <OrderAttachment>[],
+          ),
+        )
+        .toList();
   }
 
   Future<int> balanceForOrder(String orderId) async {
@@ -107,6 +144,36 @@ ORDER BY o.due_date ASC
     return id;
   }
 
+  Future<void> addAttachments({
+    required String orderId,
+    required List<NewOrderAttachmentInput> images,
+  }) async {
+    if (images.isEmpty) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final image in images) {
+      final id = _uuid.v4();
+      await _db.raw.insert('order_attachments', {
+        'id': id,
+        'order_id': orderId,
+        'image_base64': image.imageBase64,
+        'mime_type': image.mimeType,
+        'created_at': now,
+      });
+      await _outbox.enqueue(
+        type: OutboxOpType.upsertOrderAttachment,
+        entityId: id,
+        payload: {
+          'id': id,
+          'order_id': orderId,
+          'image_base64': image.imageBase64,
+          'mime_type': image.mimeType,
+          'created_at': now,
+        },
+      );
+    }
+    await _bumpCustomerUpdatedAtForOrder(orderId);
+  }
+
   Future<void> updateOrder(OrderRow o) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     await _db.raw.update(
@@ -147,6 +214,48 @@ ORDER BY o.due_date ASC
       where: 'id = ?',
       whereArgs: [customerId],
     );
+  }
+
+  Future<void> _bumpCustomerUpdatedAtForOrder(String orderId) async {
+    final rows = await _db.raw.rawQuery(
+      'SELECT customer_id FROM orders WHERE id = ?',
+      [orderId],
+    );
+    if (rows.isEmpty) return;
+    final customerId = rows.first['customer_id'] as String?;
+    if (customerId == null) return;
+    await _bumpCustomerUpdatedAt(customerId);
+  }
+
+  Future<Map<String, List<OrderAttachment>>> _attachmentsByOrderIds(
+    List<String> orderIds,
+  ) async {
+    if (orderIds.isEmpty) return const <String, List<OrderAttachment>>{};
+    final placeholders = List.filled(orderIds.length, '?').join(', ');
+    final rows = await _db.raw.rawQuery(
+      '''
+SELECT id, order_id, image_base64, mime_type, created_at
+FROM order_attachments
+WHERE order_id IN ($placeholders)
+ORDER BY created_at ASC
+''',
+      orderIds,
+    );
+
+    final map = <String, List<OrderAttachment>>{};
+    for (final m in rows) {
+      final attachment = OrderAttachment(
+        id: m['id']! as String,
+        orderId: m['order_id']! as String,
+        imageBase64: m['image_base64']! as String,
+        mimeType: m['mime_type']! as String,
+        createdAt: DateTime.fromMillisecondsSinceEpoch(m['created_at']! as int),
+      );
+      map.putIfAbsent(attachment.orderId, () => <OrderAttachment>[]).add(
+            attachment,
+          );
+    }
+    return map;
   }
 
   OrderRow _mapOrder(Map<String, Object?> m) {

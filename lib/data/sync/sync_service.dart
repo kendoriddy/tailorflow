@@ -218,6 +218,11 @@ class SyncService {
       case 'upsertPayment':
         await client.from('payments').upsert(_payloadWithShop(payload, shopId));
         break;
+      case 'upsertOrderAttachment':
+        await client
+            .from('order_attachments')
+            .upsert(_payloadWithShop(payload, shopId));
+        break;
       case 'deleteCustomer':
         await client
             .from('customers')
@@ -235,6 +240,7 @@ class SyncService {
     total += await _pullMeasurementProfiles(client);
     total += await _pullOrders(client);
     total += await _pullPayments(client);
+    total += await _pullOrderAttachments(client);
     return total;
   }
 
@@ -333,6 +339,27 @@ class SyncService {
           'amount_ngn': m['amount_ngn'],
           'paid_at': m['paid_at'],
           'note': m['note'],
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    return rows.length;
+  }
+
+  Future<int> _pullOrderAttachments(SupabaseClient client) async {
+    final rows = (await client.from('order_attachments').select(
+          'id, order_id, image_base64, mime_type, created_at',
+        )) as List<dynamic>;
+    for (final row in rows) {
+      final m = row as Map<String, dynamic>;
+      await _db.raw.insert(
+        'order_attachments',
+        {
+          'id': m['id'],
+          'order_id': m['order_id'],
+          'image_base64': m['image_base64'],
+          'mime_type': m['mime_type'] ?? 'image/jpeg',
+          'created_at': m['created_at'],
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );

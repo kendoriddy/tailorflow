@@ -25,6 +25,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   String _query = '';
   CustomerListMode _listMode = CustomerListMode.recent;
   bool _didScheduleDueToast = false;
+  bool _didRunInitialSyncRefresh = false;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
       ),
       data: (layer) {
         _maybeShowDueToast(layer);
+        _maybeRunInitialSyncRefresh(layer);
         return Scaffold(
           appBar: AppBar(
             title: const Text('Customers'),
@@ -300,6 +302,17 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
             ),
           ),
         );
+      }());
+    });
+  }
+
+  void _maybeRunInitialSyncRefresh(DataLayer layer) {
+    if (_didRunInitialSyncRefresh) return;
+    _didRunInitialSyncRefresh = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(() async {
+        await layer.sync.flushOutbox();
+        if (mounted) setState(() {});
       }());
     });
   }

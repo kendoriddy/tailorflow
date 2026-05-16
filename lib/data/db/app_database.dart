@@ -11,7 +11,7 @@ class AppDatabase {
   final Database _db;
 
   static const _name = 'tailorflow.db';
-  static const _version = 4;
+  static const _version = 5;
 
   static Future<AppDatabase> open() async {
     configureSqfliteForCurrentPlatform();
@@ -102,6 +102,19 @@ CREATE TABLE payments (
         await db
             .execute('CREATE INDEX idx_payments_order ON payments(order_id);');
         await db.execute('''
+CREATE TABLE order_attachments (
+  id TEXT NOT NULL PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  image_base64 TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+);
+''');
+        await db.execute(
+          'CREATE INDEX idx_order_attachments_order ON order_attachments(order_id);',
+        );
+        await db.execute('''
 CREATE TABLE outbox_ops (
   id TEXT NOT NULL PRIMARY KEY,
   op_type TEXT NOT NULL,
@@ -181,6 +194,21 @@ CREATE TABLE notifications (
           await db.execute('ALTER TABLE customers ADD COLUMN birth_year INTEGER;');
           await db.execute(
             'ALTER TABLE customers ADD COLUMN birthday_consent INTEGER NOT NULL DEFAULT 0;',
+          );
+        }
+        if (oldVersion < 5) {
+          await db.execute('''
+CREATE TABLE order_attachments (
+  id TEXT NOT NULL PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  image_base64 TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+);
+''');
+          await db.execute(
+            'CREATE INDEX idx_order_attachments_order ON order_attachments(order_id);',
           );
         }
       },

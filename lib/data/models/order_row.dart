@@ -1,4 +1,5 @@
 import 'order_status.dart';
+import 'order_attachment.dart';
 
 class OrderRow {
   const OrderRow({
@@ -11,6 +12,7 @@ class OrderRow {
     required this.agreedAmountNgn,
     required this.createdAt,
     required this.updatedAt,
+    this.attachments = const <OrderAttachment>[],
   });
 
   final String id;
@@ -22,4 +24,5 @@ class OrderRow {
   final int agreedAmountNgn;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<OrderAttachment> attachments;
 }

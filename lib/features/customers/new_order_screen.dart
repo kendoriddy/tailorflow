@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/utils/currency.dart';
 import '../../data/data_layer.dart';
+import '../../data/models/order_attachment.dart';
 
 class NewOrderScreen extends StatefulWidget {
   const NewOrderScreen({
@@ -21,7 +25,9 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   final _style = TextEditingController();
   final _price = TextEditingController();
   final _paid = TextEditingController();
+  final _picker = ImagePicker();
   DateTime _due = DateTime.now().add(const Duration(days: 7));
+  final List<NewOrderAttachmentInput> _attachments = [];
 
   bool _busy = false;
 
@@ -40,6 +46,45 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   int get _balance {
     final bal = _int(_price) - _int(_paid);
     return bal < 0 ? 0 : bal;
+  }
+
+  String _guessMimeType(String name) {
+    final n = name.toLowerCase();
+    if (n.endsWith('.png')) return 'image/png';
+    if (n.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  Future<void> _pickFromCamera() async {
+    final f = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75);
+    if (f == null) return;
+    final bytes = await f.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _attachments.add(
+        NewOrderAttachmentInput(
+          imageBase64: base64Encode(bytes),
+          mimeType: _guessMimeType(f.name),
+        ),
+      );
+    });
+  }
+
+  Future<void> _pickFromGallery() async {
+    final files = await _picker.pickMultiImage(imageQuality: 75);
+    if (files.isEmpty) return;
+    final additions = <NewOrderAttachmentInput>[];
+    for (final f in files) {
+      final bytes = await f.readAsBytes();
+      additions.add(
+        NewOrderAttachmentInput(
+          imageBase64: base64Encode(bytes),
+          mimeType: _guessMimeType(f.name),
+        ),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _attachments.addAll(additions));
   }
 
   Future<void> _save() async {
@@ -61,6 +106,12 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
         dueDate: _due,
         agreedAmountNgn: price,
       );
+      if (_attachments.isNotEmpty) {
+        await widget.layer.orders.addAttachments(
+          orderId: orderId,
+          images: _attachments,
+        );
+      }
       if (paid > 0) {
         await widget.layer.payments.insertPayment(
           orderId: orderId,
@@ -123,6 +174,71 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
               if (picked != null) setState(() => _due = picked);
             },
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _pickFromCamera,
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('Snap fabric/style'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _pickFromGallery,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Add from gallery'),
+                ),
+              ),
+            ],
+          ),
+          if (_attachments.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 80,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _attachments.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final bytes = base64Decode(_attachments[i].imageBase64);
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          bytes,
+                          width: 90,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: InkWell(
+                          onTap: _busy
+                              ? null
+                              : () => setState(() => _attachments.removeAt(i)),
+                          child: Container(
+                            color: Colors.black54,
+                            padding: const EdgeInsets.all(4),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Text(
             'Balance = ${formatNgn(_balance)}',

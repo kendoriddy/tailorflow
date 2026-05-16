@@ -434,6 +434,40 @@ class _OrdersTab extends StatelessWidget {
                         : AppTheme.accentGreen,
                   ),
                 ),
+                if (o.order.attachments.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 76,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: o.order.attachments.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, ai) {
+                        final bytes = o.order.attachments[ai].imageBytes;
+                        if (bytes == null) {
+                          return Container(
+                            width: 76,
+                            height: 76,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.black26),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.broken_image_outlined),
+                          );
+                        }
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            bytes,
+                            width: 76,
+                            height: 76,
+                            fit: BoxFit.cover,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
                 Text('Due: ${l10n.formatMediumDate(o.order.dueDate)}'),
                 Row(
                   children: [
