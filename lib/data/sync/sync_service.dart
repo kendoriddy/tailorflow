@@ -191,6 +191,33 @@ class SyncService {
     return <String, dynamic>{...payload, 'shop_id': shopId};
   }
 
+  /// Older outbox rows omitted [created_at] on updates; Supabase requires it on upsert.
+  Future<Map<String, dynamic>> _hydrateCreatedAt({
+    required String table,
+    required Map<String, dynamic> payload,
+  }) async {
+    if (payload['created_at'] != null) return payload;
+    final id = payload['id'] as String?;
+    if (id != null) {
+      final rows = await _db.raw.query(
+        table,
+        columns: ['created_at'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isNotEmpty && rows.first['created_at'] != null) {
+        return <String, dynamic>{
+          ...payload,
+          'created_at': rows.first['created_at'],
+        };
+      }
+    }
+    final fallback =
+        payload['updated_at'] ?? DateTime.now().millisecondsSinceEpoch;
+    return <String, dynamic>{...payload, 'created_at': fallback};
+  }
+
   /// Minimal example mapping: requires matching tables in Supabase project.
   Future<void> _applyRemote(
     SupabaseClient client,
@@ -203,9 +230,12 @@ class SyncService {
 
     switch (type) {
       case 'upsertCustomer':
-        await client
-            .from('customers')
-            .upsert(_payloadWithShop(payload, shopId));
+        await client.from('customers').upsert(
+              _payloadWithShop(
+                await _hydrateCreatedAt(table: 'customers', payload: payload),
+                shopId,
+              ),
+            );
         break;
       case 'upsertMeasurement':
         await client
@@ -213,7 +243,12 @@ class SyncService {
             .upsert(_payloadWithShop(payload, shopId));
         break;
       case 'upsertOrder':
-        await client.from('orders').upsert(_payloadWithShop(payload, shopId));
+        await client.from('orders').upsert(
+              _payloadWithShop(
+                await _hydrateCreatedAt(table: 'orders', payload: payload),
+                shopId,
+              ),
+            );
         break;
       case 'upsertPayment':
         await client.from('payments').upsert(_payloadWithShop(payload, shopId));

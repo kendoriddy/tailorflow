@@ -236,6 +236,7 @@ ORDER BY c.updated_at DESC
         'birth_month': c.birthMonth,
         'birth_year': c.birthYear,
         'birthday_consent': c.birthdayConsent ? 1 : 0,
+        'created_at': c.createdAt.millisecondsSinceEpoch,
         'updated_at': now,
       },
     );

@@ -201,6 +201,7 @@ ORDER BY o.due_date ASC
         'due_date': o.dueDate.millisecondsSinceEpoch,
         'status': o.status.wireName,
         'agreed_amount_ngn': o.agreedAmountNgn,
+        'created_at': o.createdAt.millisecondsSinceEpoch,
         'updated_at': now,
       },
     );
