@@ -307,3 +307,45 @@ nav a:hover {
 .footer-inner a {
   color: var(--green);
 }
+
+/* Privacy policy */
+.policy-page {
+  padding: 2.5rem 0 3rem;
+  max-width: 720px;
+}
+
+.policy-page h1 {
+  margin: 0 0 0.5rem;
+}
+
+.policy-meta {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.policy-note {
+  background: var(--green-light);
+  border-left: 4px solid var(--green);
+  padding: 1rem 1.25rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin-bottom: 2rem;
+}
+
+.policy-page h2 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.15rem;
+  color: var(--green);
+}
+
+.policy-page ul {
+  padding-left: 1.25rem;
+}
+
+.policy-page li {
+  margin-bottom: 0.35rem;
+}
+
+.policy-page a {
+  color: var(--green);
+}

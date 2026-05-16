@@ -1,6 +1,9 @@
 # TailorFlow — pilot privacy notes (NDPR-oriented)
 
-This document is **not legal advice**. It is an engineering checklist for early pilots in Nigeria.
+**Public policy (users & Play Store):** https://tailorflow.kennyonifade.com/privacy.html  
+**In-app:** Settings → Privacy policy (opens the same URL).
+
+This document is **not legal advice**. It is an internal engineering checklist for early pilots in Nigeria.
 
 ## What the MVP stores locally
 

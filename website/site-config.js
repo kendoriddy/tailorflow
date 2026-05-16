@@ -21,6 +21,8 @@ window.SITE_CONFIG = {
   ctaHeading: "Ready to try {appName}?",
   privacyLead:
     "{appName} stores customer and order data on your device first. Optional cloud backup uses Supabase when you sign in and configure sync.",
+  privacyContactEmail: "onifkay@gmail.com",
+  privacyLastUpdated: "2026-05-16",
 
   // —— Download & contact ——
   // GitHub Release APK: see docs/BRANDING.md § "APK from GitHub Releases"
