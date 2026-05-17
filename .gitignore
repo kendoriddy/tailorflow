@@ -19,3 +19,11 @@ build/
 
 # macOS
 .DS_Store
+
+# Security lab (never commit secrets or raw evidence)
+lab.env.local
+.env
+.env.*
+!.env.example
+reports/evidence/*
+!reports/evidence/.gitkeep
