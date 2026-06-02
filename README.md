@@ -59,13 +59,28 @@ See [`supabase/migrations/001_init.sql`](supabase/migrations/001_init.sql) for e
 flutter run --dart-define=SENTRY_DSN=https://...@...ingest.sentry.io/...
 ```
 
-## Optional: billing / Paystack
+## Billing / Paystack subscriptions
 
-The paywall is gated by `RemoteFlags.paywallEnabled` (defaults off). Wire Paystack Customer Portal or subscription flow when you are ready to charge.
+- **Monthly:** ₦2,000
+- **Yearly:** ₦19,800
 
-## Freemium
+Setup (Paystack plans, Edge Functions, webhooks): [`docs/PAYSTACK_SETUP.md`](docs/PAYSTACK_SETUP.md). Apply migration [`supabase/migrations/004_shop_subscriptions.sql`](supabase/migrations/004_shop_subscriptions.sql).
 
-First **10 active customers** are free (`customers.deleted_at IS NULL`). Adding the 11th customer opens the paywall when billing is enabled.
+The paywall is gated by `RemoteFlags.paywallEnabled` (`REMOTE_PAYWALL` dart-define, defaults off). Subscribed shops get unlimited customers and WhatsApp.
+
+## Freemium & plan limits
+
+Defaults: **50 active customers** and **10 WhatsApp handoffs/month** on the free tier (`customers.deleted_at IS NULL`). Limits are **admin-configurable** in Supabase `platform_config` — see [`docs/PLANS_AND_LIMITS.md`](docs/PLANS_AND_LIMITS.md). Apply migration [`supabase/migrations/003_platform_config.sql`](supabase/migrations/003_platform_config.sql).
+
+Adding customers beyond the limit opens the paywall when `REMOTE_PAYWALL=true` and the shop is not subscribed.
+
+## Shop branding (white-label)
+
+Each shop can set display name, accent color, logo, and shop name used in WhatsApp copy under **Settings → Branding**. Product-level rename for store listings: [`docs/BRANDING.md`](docs/BRANDING.md).
+
+## Play Store copy
+
+See [`docs/STORE_LISTING.md`](docs/STORE_LISTING.md).
 
 ## Privacy (pilot)
 

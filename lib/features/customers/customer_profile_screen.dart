@@ -9,7 +9,8 @@ import '../../data/models/order_money_view.dart';
 import '../../data/models/order_status.dart';
 import '../../data/models/order_row.dart';
 import '../../data/models/payment.dart';
-import '../whatsapp/whatsapp_launcher.dart';
+import '../../core/branding_scope.dart';
+import '../../data/whatsapp/whatsapp_service.dart';
 import '../whatsapp/whatsapp_templates.dart';
 import 'add_measurement_screen.dart';
 import 'customer_feedback_request_screen.dart';
@@ -533,21 +534,19 @@ class _OrdersTab extends StatelessWidget {
                     ),
                     OutlinedButton.icon(
                       onPressed: () async {
+                        final shopName =
+                            BrandingScope.of(context).shopNameForMessages;
                         final msg = WhatsAppTemplates.dressReady(
                           customerName: customer.name,
                           styleTitle: o.order.title,
+                          shopName: shopName,
                         );
-                        final ok = await openWhatsAppText(
+                        final result = await layer.whatsapp.sendText(
                           rawPhone: customer.phone,
                           message: msg,
                         );
-                        if (!ok && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content:
-                                  Text('Add a phone number to send WhatsApp.'),
-                            ),
-                          );
+                        if (context.mounted) {
+                          WhatsAppService.showResultSnackBar(context, result);
                         }
                       },
                       icon: const Icon(Icons.chat_outlined),
@@ -560,17 +559,14 @@ class _OrdersTab extends StatelessWidget {
                                 customerName: customer.name,
                                 balanceText: formatNgn(o.balanceNgn),
                               );
-                              final ok = await openWhatsAppText(
+                              final result = await layer.whatsapp.sendText(
                                 rawPhone: customer.phone,
                                 message: msg,
                               );
-                              if (!ok && context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Add a phone number to send WhatsApp.',
-                                    ),
-                                  ),
+                              if (context.mounted) {
+                                WhatsAppService.showResultSnackBar(
+                                  context,
+                                  result,
                                 );
                               }
                             }

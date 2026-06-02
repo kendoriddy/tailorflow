@@ -1,6 +1,10 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'billing/freemium_service.dart';
+import 'billing/plan_limits_service.dart';
+import 'billing/subscription_service.dart';
+import 'billing/whatsapp_quota_service.dart';
+import 'whatsapp/whatsapp_service.dart';
 import 'db/app_database.dart';
 import 'repos/customers_repository.dart';
 import 'repos/notifications_repository.dart';
@@ -19,6 +23,10 @@ class DataLayer {
     required this.payments,
     required this.notifications,
     required this.freemium,
+    required this.planLimits,
+    required this.whatsappQuota,
+    required this.whatsapp,
+    required this.subscriptions,
     required this.settings,
     required this.sync,
   });
@@ -30,6 +38,10 @@ class DataLayer {
   final PaymentsRepository payments;
   final NotificationsRepository notifications;
   final FreemiumService freemium;
+  final PlanLimitsService planLimits;
+  final WhatsAppQuotaService whatsappQuota;
+  final WhatsAppService whatsapp;
+  final SubscriptionService subscriptions;
   final SettingsRepository settings;
   final SyncService sync;
 
@@ -40,12 +52,21 @@ class DataLayer {
     final orders = OrdersRepository(db, outbox);
     final payments = PaymentsRepository(db, outbox);
     final notifications = NotificationsRepository(db);
-    final freemium = FreemiumService(db);
     final settings = SettingsRepository(db);
+    final subscriptions = SubscriptionService(settings);
+    final planLimits = PlanLimitsService(settings);
+    final freemium = FreemiumService(db, planLimits);
+    final whatsappQuota = WhatsAppQuotaService(settings, planLimits);
+    final whatsapp = WhatsAppService(
+      subscriptions: subscriptions,
+      quota: whatsappQuota,
+    );
     final sync = SyncService(
       db: db,
       outbox: outbox,
       connectivity: Connectivity(),
+      planLimits: planLimits,
+      subscriptions: subscriptions,
     );
     final layer = DataLayer._(
       db: db,
@@ -55,9 +76,15 @@ class DataLayer {
       payments: payments,
       notifications: notifications,
       freemium: freemium,
+      planLimits: planLimits,
+      whatsappQuota: whatsappQuota,
+      whatsapp: whatsapp,
+      subscriptions: subscriptions,
       settings: settings,
       sync: sync,
     );
+    await layer.subscriptions.syncEntitlement();
+    await layer.planLimits.refreshFromRemote();
     await layer.notifications.refreshDueReminders();
     return layer;
   }

@@ -6,7 +6,7 @@ import '../../data/data_layer.dart';
 import '../../data/feedback/customer_feedback_remote.dart';
 import '../../data/models/customer.dart';
 import '../../data/models/order_money_view.dart';
-import '../whatsapp/whatsapp_launcher.dart';
+import '../../data/whatsapp/whatsapp_service.dart';
 import '../whatsapp/whatsapp_templates.dart';
 
 class CustomerFeedbackRequestScreen extends StatefulWidget {
@@ -90,7 +90,7 @@ class _CustomerFeedbackRequestScreenState
 
   Future<void> _sendRequestWhatsApp() async {
     final orderTitle = widget.order?.order.title;
-    final ok = await openWhatsAppText(
+    final result = await widget.layer.whatsapp.sendText(
       rawPhone: widget.customer.phone,
       message: WhatsAppTemplates.feedbackAndBirthdayRequest(
         customerName: widget.customer.name,
@@ -98,15 +98,7 @@ class _CustomerFeedbackRequestScreenState
       ),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Feedback request opened in WhatsApp.'
-              : 'Add a valid phone number to send request on WhatsApp.',
-        ),
-      ),
-    );
+    WhatsAppService.showResultSnackBar(context, result);
   }
 
   Future<void> _saveResponse() async {
@@ -119,7 +111,8 @@ class _CustomerFeedbackRequestScreenState
     if (day == null || month == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Birthday day and month are required and must be valid.'),
+          content:
+              Text('Birthday day and month are required and must be valid.'),
         ),
       );
       return;
@@ -246,7 +239,8 @@ class _CustomerFeedbackRequestScreenState
                 child: TextField(
                   controller: _year,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Year (optional)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Year (optional)'),
                 ),
               ),
             ],

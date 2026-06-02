@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,14 +9,18 @@ import '../../data/data_layer_provider.dart';
 import '../../data/models/customer_list_item.dart';
 import '../notifications/notifications_screen.dart';
 import '../settings/feedback_screen.dart';
+import '../promo/promo_campaign_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../core/branding_scope.dart';
 import 'add_customer_screen.dart';
 import 'customer_profile_screen.dart';
 
 enum CustomerListMode { recent, alphabetical, dueFirst }
 
 class CustomerListScreen extends ConsumerStatefulWidget {
-  const CustomerListScreen({super.key});
+  const CustomerListScreen({super.key, this.onBrandingChanged});
+
+  final VoidCallback? onBrandingChanged;
 
   @override
   ConsumerState<CustomerListScreen> createState() => _CustomerListScreenState();
@@ -58,8 +63,38 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
         _maybeRunInitialSyncRefresh(layer);
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Customers'),
+            title: Row(
+              children: [
+                if (!kIsWeb && BrandingScope.of(context).logoFile != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.file(
+                        BrandingScope.of(context).logoFile!,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Text(BrandingScope.of(context).displayName),
+                ),
+              ],
+            ),
             actions: [
+              IconButton(
+                tooltip: 'Promo campaign',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PromoCampaignScreen(layer: layer),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.campaign_outlined),
+              ),
               FutureBuilder<int>(
                 future: layer.notifications.unreadCount(),
                 builder: (context, snap) {
@@ -113,10 +148,16 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
               ),
               IconButton(
                 tooltip: 'Settings',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => SettingsScreen(layer: layer)),
-                ),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SettingsScreen(
+                        layer: layer,
+                        onBrandingChanged: widget.onBrandingChanged,
+                      ),
+                    ),
+                  );
+                },
                 icon: const Icon(Icons.settings_outlined),
               ),
             ],

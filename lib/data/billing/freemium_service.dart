@@ -1,11 +1,11 @@
 import '../db/app_database.dart';
-
-const kFreemiumCustomerLimit = 10;
+import 'plan_limits_service.dart';
 
 class FreemiumService {
-  FreemiumService(this._db);
+  FreemiumService(this._db, this._plans);
 
   final AppDatabase _db;
+  final PlanLimitsService _plans;
 
   /// Active customers = not soft-deleted.
   Future<int> activeCustomerCount() async {
@@ -15,9 +15,15 @@ class FreemiumService {
     return (rows.first['c'] as int?) ?? 0;
   }
 
+  Future<int> freeCustomerLimit() async {
+    final config = await _plans.getConfig();
+    return config.freeMaxActiveCustomers;
+  }
+
   /// Whether adding another customer would exceed the free tier cap.
   Future<bool> isAtFreeLimit() async {
+    final limit = await freeCustomerLimit();
     final c = await activeCustomerCount();
-    return c >= kFreemiumCustomerLimit;
+    return c >= limit;
   }
 }
