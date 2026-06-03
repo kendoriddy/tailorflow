@@ -4,37 +4,71 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/brand.dart';
+import '../../core/branding_scope.dart';
+import '../../data/billing/plan_config.dart';
 import '../../data/billing/remote_flags.dart';
+import '../../data/billing/subscription_pricing.dart';
+import '../../data/billing/subscription_status.dart';
 import '../../data/data_layer.dart';
+import '../billing/paywall_screen.dart';
 import 'backup_screen.dart';
+import 'branding_settings_screen.dart';
 import 'feedback_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, required this.layer});
+  const SettingsScreen({
+    super.key,
+    required this.layer,
+    this.onBrandingChanged,
+  });
 
   final DataLayer layer;
+  final VoidCallback? onBrandingChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late Future<bool> _subscribed;
+  late Future<ShopSubscriptionStatus> _subscription;
+  late Future<_PlanUsage> _planUsage;
   late Future<_SyncIdentity> _syncIdentity;
 
   @override
   void initState() {
     super.initState();
-    _subscribed = widget.layer.settings.isSubscribed();
+    _subscription = widget.layer.subscriptions.fetchStatus();
+    _planUsage = _loadPlanUsage();
     _syncIdentity = _loadSyncIdentity();
   }
 
+  Future<_PlanUsage> _loadPlanUsage() async {
+    final config = await widget.layer.planLimits.getConfig();
+    final customers = await widget.layer.freemium.activeCustomerCount();
+    final waUsed = await widget.layer.whatsappQuota.usedThisMonth();
+    final subscribed = await widget.layer.subscriptions.isActive();
+    return _PlanUsage(
+      config: config,
+      activeCustomers: customers,
+      whatsappUsed: waUsed,
+      subscribed: subscribed,
+    );
+  }
+
   Future<void> _reload() async {
+    await widget.layer.subscriptions.syncEntitlement();
     setState(() {
-      _subscribed = widget.layer.settings.isSubscribed();
+      _subscription = widget.layer.subscriptions.fetchStatus();
+      _planUsage = _loadPlanUsage();
       _syncIdentity = _loadSyncIdentity();
     });
-    await _subscribed;
+    await widget.layer.planLimits.refreshFromRemote();
+    if (mounted) {
+      setState(() {
+        _planUsage = _loadPlanUsage();
+        _subscription = widget.layer.subscriptions.fetchStatus();
+      });
+    }
   }
 
   Future<void> _syncNow() async {
@@ -106,6 +140,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          const _SettingsSectionHeader('Your shop'),
+          Card(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: ListTile(
+              leading: Icon(
+                Icons.palette_outlined,
+                color: theme.colorScheme.primary,
+              ),
+              title: const Text('Branding'),
+              subtitle: Text(
+                'Name, colors, and logo — currently “${BrandingScope.of(context).displayName}”',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final updated = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute<bool>(
+                    builder: (_) => BrandingSettingsScreen(layer: widget.layer),
+                  ),
+                );
+                if (updated == true) {
+                  widget.onBrandingChanged?.call();
+                  await _reload();
+                }
+              },
+            ),
+          ),
+          const _SettingsSectionHeader('Subscription'),
+          FutureBuilder<ShopSubscriptionStatus>(
+            future: _subscription,
+            builder: (context, snap) {
+              final sub = snap.data;
+              if (sub == null) {
+                return const ListTile(
+                  title: Text('Subscription'),
+                  subtitle: Text('Loading…'),
+                );
+              }
+              final String subtitle;
+              if (sub.isActive) {
+                final plan = sub.plan == SubscriptionPlan.yearly
+                    ? SubscriptionPricing.labelYearly()
+                    : SubscriptionPricing.labelMonthly();
+                final renew = sub.periodEnd != null
+                    ? 'Renews ${MaterialLocalizations.of(context).formatShortDate(sub.periodEnd!)}'
+                    : 'Active';
+                subtitle = '$plan — $renew';
+              } else {
+                subtitle =
+                    'Free plan — ${SubscriptionPricing.labelMonthly()} or ${SubscriptionPricing.labelYearly()}';
+              }
+              return ListTile(
+                leading: Icon(
+                  sub.isActive
+                      ? Icons.verified_outlined
+                      : Icons.workspace_premium_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                title: Text(sub.isActive ? 'Subscribed' : 'Upgrade'),
+                subtitle: Text(subtitle),
+                trailing: sub.isActive ? null : const Icon(Icons.chevron_right),
+                onTap: sub.isActive
+                    ? null
+                    : () async {
+                        await Navigator.of(context).push<bool>(
+                          MaterialPageRoute<bool>(
+                            fullscreenDialog: true,
+                            builder: (_) => PaywallScreen(layer: widget.layer),
+                          ),
+                        );
+                        await _reload();
+                      },
+              );
+            },
+          ),
+          FutureBuilder<_PlanUsage>(
+            future: _planUsage,
+            builder: (context, snap) {
+              final u = snap.data;
+              if (u == null) {
+                return const ListTile(
+                  title: Text('Plan usage'),
+                  subtitle: Text('Loading…'),
+                );
+              }
+              final customerLine = u.subscribed
+                  ? '${u.activeCustomers} active customers (subscribed)'
+                  : '${u.activeCustomers} / ${u.config.freeMaxActiveCustomers} active customers (free)';
+              final waLine = u.subscribed
+                  ? 'WhatsApp: unlimited (subscribed)'
+                  : u.config.freeWhatsAppUnlimited
+                      ? 'WhatsApp: unlimited on free plan'
+                      : 'WhatsApp: ${u.whatsappUsed} / ${u.config.freeWhatsAppMonthlyLimit} this month (free)';
+              return ListTile(
+                title: const Text('Plan usage'),
+                subtitle: Text('$customerLine\n$waLine'),
+              );
+            },
+          ),
           const _SettingsSectionHeader('Help & feedback'),
           Card(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -222,15 +354,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             FutureBuilder<bool>(
-              future: _subscribed,
+              future: widget.layer.settings.isSubscribed(),
               builder: (context, snap) {
-                final v = snap.data ?? false;
                 return SwitchListTile(
-                  title: const Text('Subscribed (local stub)'),
+                  title: const Text('Subscribed (local override)'),
                   subtitle: const Text(
-                    'Pilot testing only — production uses Paystack webhooks.',
+                    'Debug only — bypasses Paystack. Do not use in production.',
                   ),
-                  value: v,
+                  value: snap.data ?? false,
                   onChanged: (nv) async {
                     await widget.layer.settings.setSubscribed(nv);
                     await _reload();
@@ -276,6 +407,20 @@ class _SettingsSectionHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PlanUsage {
+  const _PlanUsage({
+    required this.config,
+    required this.activeCustomers,
+    required this.whatsappUsed,
+    required this.subscribed,
+  });
+
+  final PlanConfig config;
+  final int activeCustomers;
+  final int whatsappUsed;
+  final bool subscribed;
 }
 
 class _SyncIdentity {

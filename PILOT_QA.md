@@ -17,8 +17,8 @@ Run these checks on a **real mid-range Android phone** before handing builds to 
 ## Freemium + paywall (engineering build)
 
 1. Build with `--dart-define=REMOTE_PAYWALL=true`.
-2. Create 10 customers successfully.
-3. Attempt customer #11: paywall should appear unless **Subscribed** is enabled in Settings (local stub).
+2. Create customers up to the free limit (default 50; see Settings → Plan usage).
+3. Attempt one more: paywall should appear unless **Subscribed** is enabled in Settings (local stub).
 
 ## WhatsApp handoff
 

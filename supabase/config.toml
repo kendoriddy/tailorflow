@@ -1,0 +1,24 @@
+# Supabase CLI config — project ref must match `supabase link`.
+# See https://supabase.com/docs/guides/cli/config
+
+project_id = "ymesilrfxjtyzfziokde"
+
+[api]
+enabled = true
+
+[db]
+major_version = 17
+
+# Let OPTIONS preflight reach the function (fixes browser / Flutter Web CORS).
+# JWT is still checked inside the handler via auth.getUser().
+[functions.paystack-initialize]
+verify_jwt = false
+
+[functions.paystack-verify]
+verify_jwt = false
+
+[functions.paystack-return]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false

@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../billing/plan_limits_service.dart';
+import '../billing/subscription_service.dart';
 import '../db/app_database.dart';
 import 'outbox_repository.dart';
 
@@ -32,13 +34,19 @@ class SyncService {
     required AppDatabase db,
     required OutboxRepository outbox,
     required Connectivity connectivity,
+    PlanLimitsService? planLimits,
+    SubscriptionService? subscriptions,
   })  : _db = db,
         _outbox = outbox,
-        _connectivity = connectivity;
+        _connectivity = connectivity,
+        _planLimits = planLimits,
+        _subscriptions = subscriptions;
 
   final AppDatabase _db;
   final OutboxRepository _outbox;
   final Connectivity _connectivity;
+  final PlanLimitsService? _planLimits;
+  final SubscriptionService? _subscriptions;
 
   StreamSubscription<List<ConnectivityResult>>? _sub;
   Timer? _timer;
@@ -132,6 +140,8 @@ class SyncService {
         }
       }
       final pulled = await _pullFromRemote(client);
+      await _planLimits?.refreshFromRemote();
+      await _subscriptions?.syncEntitlement();
       final pending = (await _outbox.pendingOps()).length;
       return SyncReport(
         success: true,

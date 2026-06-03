@@ -19,14 +19,25 @@ class WhatsAppTemplates {
         '$balanceText. Thank you.';
   }
 
+  static String promo({
+    required String customerName,
+    required String shopName,
+    required String offerDescription,
+    required String validThrough,
+  }) {
+    final name = customerName.trim().isEmpty ? 'Sir/Ma' : customerName.trim();
+    return 'Good day $name! $shopName has a special offer for you: '
+        '$offerDescription. Valid $validThrough. '
+        'Visit us or reply on WhatsApp to book. Thank you!';
+  }
+
   static String feedbackAndBirthdayRequest({
     required String customerName,
     String? orderTitle,
   }) {
     final name = customerName.trim().isEmpty ? 'Sir/Ma' : customerName.trim();
-    final orderPart = (orderTitle?.trim().isNotEmpty == true)
-        ? ' for your $orderTitle'
-        : '';
+    final orderPart =
+        (orderTitle?.trim().isNotEmpty == true) ? ' for your $orderTitle' : '';
     return 'Hello $name, thank you for patronizing us$orderPart. '
         'Please rate our service from 1-5 and share any quick feedback. '
         'Also kindly send your birthday day and month (year optional). '
