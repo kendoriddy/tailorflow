@@ -82,6 +82,10 @@ Each shop can set display name, accent color, logo, and shop name used in WhatsA
 
 See [`docs/STORE_LISTING.md`](docs/STORE_LISTING.md).
 
+## Play Store & App Store deployment
+
+Full checklist, signing setup, build commands, and store policy notes: [`docs/STORE_DEPLOYMENT.md`](docs/STORE_DEPLOYMENT.md).
+
 ## Privacy (pilot)
 
 See [`docs/PRIVACY_PILOT.md`](docs/PRIVACY_PILOT.md) for NDPR-oriented copy and data handling notes.

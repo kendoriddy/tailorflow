@@ -1,0 +1,13 @@
+# Copy to android/key.properties and fill in values.
+# NEVER commit key.properties or *.jks / *.keystore to git.
+#
+# Generate upload keystore (one-time):
+#   keytool -genkey -v -keystore ~/tailorflow-upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# See docs/STORE_DEPLOYMENT.md for Play Store signing steps.
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=/absolute/path/to/tailorflow-upload-keystore.jks
