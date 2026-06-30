@@ -37,3 +37,9 @@ Paystack (see [`docs/PAYSTACK_SETUP.md`](PAYSTACK_SETUP.md)):
 ## Privacy policy URL
 
 Use `Brand.privacyPolicyUrl` in code — currently hosted at your `siteUrl` + `/privacy.html`.
+
+## App Store subtitle (30 chars max)
+
+```
+Tailoring shop orders & payments
+```
