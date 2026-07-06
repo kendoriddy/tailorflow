@@ -166,54 +166,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
-          const _SettingsSectionHeader('Subscription'),
-          FutureBuilder<ShopSubscriptionStatus>(
-            future: _subscription,
-            builder: (context, snap) {
-              final sub = snap.data;
-              if (sub == null) {
-                return const ListTile(
-                  title: Text('Subscription'),
-                  subtitle: Text('Loading…'),
+          if (RemoteFlags.paywallEnabled) ...[
+            const _SettingsSectionHeader('Subscription'),
+            FutureBuilder<ShopSubscriptionStatus>(
+              future: _subscription,
+              builder: (context, snap) {
+                final sub = snap.data;
+                if (sub == null) {
+                  return const ListTile(
+                    title: Text('Subscription'),
+                    subtitle: Text('Loading…'),
+                  );
+                }
+                final String subtitle;
+                if (sub.isActive) {
+                  final plan = sub.plan == SubscriptionPlan.yearly
+                      ? SubscriptionPricing.labelYearly()
+                      : SubscriptionPricing.labelMonthly();
+                  final renew = sub.periodEnd != null
+                      ? 'Renews ${MaterialLocalizations.of(context).formatShortDate(sub.periodEnd!)}'
+                      : 'Active';
+                  subtitle = '$plan — $renew';
+                } else {
+                  subtitle =
+                      'Free plan — ${SubscriptionPricing.labelMonthly()} or ${SubscriptionPricing.labelYearly()}';
+                }
+                return ListTile(
+                  leading: Icon(
+                    sub.isActive
+                        ? Icons.verified_outlined
+                        : Icons.workspace_premium_outlined,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: Text(sub.isActive ? 'Subscribed' : 'Upgrade'),
+                  subtitle: Text(subtitle),
+                  trailing:
+                      sub.isActive ? null : const Icon(Icons.chevron_right),
+                  onTap: sub.isActive
+                      ? null
+                      : () async {
+                          await Navigator.of(context).push<bool>(
+                            MaterialPageRoute<bool>(
+                              fullscreenDialog: true,
+                              builder: (_) => PaywallScreen(layer: widget.layer),
+                            ),
+                          );
+                          await _reload();
+                        },
                 );
-              }
-              final String subtitle;
-              if (sub.isActive) {
-                final plan = sub.plan == SubscriptionPlan.yearly
-                    ? SubscriptionPricing.labelYearly()
-                    : SubscriptionPricing.labelMonthly();
-                final renew = sub.periodEnd != null
-                    ? 'Renews ${MaterialLocalizations.of(context).formatShortDate(sub.periodEnd!)}'
-                    : 'Active';
-                subtitle = '$plan — $renew';
-              } else {
-                subtitle =
-                    'Free plan — ${SubscriptionPricing.labelMonthly()} or ${SubscriptionPricing.labelYearly()}';
-              }
-              return ListTile(
-                leading: Icon(
-                  sub.isActive
-                      ? Icons.verified_outlined
-                      : Icons.workspace_premium_outlined,
-                  color: theme.colorScheme.primary,
-                ),
-                title: Text(sub.isActive ? 'Subscribed' : 'Upgrade'),
-                subtitle: Text(subtitle),
-                trailing: sub.isActive ? null : const Icon(Icons.chevron_right),
-                onTap: sub.isActive
-                    ? null
-                    : () async {
-                        await Navigator.of(context).push<bool>(
-                          MaterialPageRoute<bool>(
-                            fullscreenDialog: true,
-                            builder: (_) => PaywallScreen(layer: widget.layer),
-                          ),
-                        );
-                        await _reload();
-                      },
-              );
-            },
-          ),
+              },
+            ),
+          ],
           FutureBuilder<_PlanUsage>(
             future: _planUsage,
             builder: (context, snap) {
@@ -224,14 +227,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text('Loading…'),
                 );
               }
-              final customerLine = u.subscribed
-                  ? '${u.activeCustomers} active customers (subscribed)'
-                  : '${u.activeCustomers} / ${u.config.freeMaxActiveCustomers} active customers (free)';
-              final waLine = u.subscribed
-                  ? 'WhatsApp: unlimited (subscribed)'
+              final customerLine = RemoteFlags.paywallEnabled
+                  ? (u.subscribed
+                      ? '${u.activeCustomers} active customers (subscribed)'
+                      : '${u.activeCustomers} / ${u.config.freeMaxActiveCustomers} active customers (free)')
+                  : '${u.activeCustomers} active customers';
+              final waLine = RemoteFlags.paywallEnabled
+                  ? (u.subscribed
+                      ? 'WhatsApp: unlimited (subscribed)'
+                      : u.config.freeWhatsAppUnlimited
+                          ? 'WhatsApp: unlimited on free plan'
+                          : 'WhatsApp: ${u.whatsappUsed} / ${u.config.freeWhatsAppMonthlyLimit} this month (free)')
                   : u.config.freeWhatsAppUnlimited
-                      ? 'WhatsApp: unlimited on free plan'
-                      : 'WhatsApp: ${u.whatsappUsed} / ${u.config.freeWhatsAppMonthlyLimit} this month (free)';
+                      ? 'WhatsApp: ${u.whatsappUsed} sent this month'
+                      : 'WhatsApp: ${u.whatsappUsed} sent this month (${u.config.freeWhatsAppMonthlyLimit} soft limit)';
               return ListTile(
                 title: const Text('Plan usage'),
                 subtitle: Text('$customerLine\n$waLine'),

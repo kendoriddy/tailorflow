@@ -20,14 +20,33 @@ TailorFlow helps small tailoring shops run day-to-day work from one phone — ev
 • Promo campaigns — send discount offers to selected customers via WhatsApp
 • Optional cloud backup — sync when you sign in with Supabase
 
+Free to download. No in-app purchases in this release.
+
+Built for Nigerian shop-floor tone: simple, fast, and readable in bright light.
+```
+
+## Full description (with billing — direct APK / future store update)
+
+Use this when subscriptions are enabled via Paystack or native store billing:
+
+```
+TailorFlow helps small tailoring shops run day-to-day work from one phone — even when the network is poor or offline.
+
+• Customers & measurements — keep profiles and measurement sheets on device
+• Orders & due dates — track status from booked to ready
+• Payments — agreed price, partial payments, balance at a glance
+• WhatsApp reminders — polite prefilled messages for “order ready” and payment reminders
+• Promo campaigns — send discount offers to selected customers via WhatsApp
+• Optional cloud backup — sync when you sign in with Supabase
+
 Free plan limits (customer count and WhatsApp messages per month) are set by your service provider and can change over time. Upgrade for unlimited customers and messaging when subscriptions are enabled.
 
 Built for Nigerian shop-floor tone: simple, fast, and readable in bright light.
 ```
 
-## Subscription / in-app products
+## Subscription / in-app products (not in v1 store release)
 
-Paystack (see [`docs/PAYSTACK_SETUP.md`](PAYSTACK_SETUP.md)):
+Deferred until native Play Billing / App Store IAP is implemented. For direct APK distribution with Paystack, see [`docs/PAYSTACK_SETUP.md`](PAYSTACK_SETUP.md):
 
 | Product | Price          | Entitlement                                              |
 | ------- | -------------- | -------------------------------------------------------- |

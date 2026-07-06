@@ -86,6 +86,8 @@ See [`docs/STORE_LISTING.md`](docs/STORE_LISTING.md).
 
 Full checklist, signing setup, build commands, and store policy notes: [`docs/STORE_DEPLOYMENT.md`](docs/STORE_DEPLOYMENT.md).
 
+**v1 store release:** ship with default settings (no `REMOTE_PAYWALL` define) — billing UI hidden, no in-app purchases. Paystack billing remains available for direct APK builds with `--dart-define=REMOTE_PAYWALL=true`.
+
 ## Privacy (pilot)
 
 See [`docs/PRIVACY_PILOT.md`](docs/PRIVACY_PILOT.md) for NDPR-oriented copy and data handling notes.
