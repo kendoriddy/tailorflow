@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../billing/remote_flags.dart';
 import '../billing/subscription_service.dart';
 import '../billing/whatsapp_quota_service.dart';
 import '../../features/whatsapp/whatsapp_launcher.dart';
@@ -28,7 +29,9 @@ class WhatsAppService {
     bool countTowardQuota = true,
   }) async {
     final subscribed = await _subscriptions.isActive();
-    if (!subscribed && countTowardQuota) {
+    if (!subscribed &&
+        countTowardQuota &&
+        RemoteFlags.paywallEnabled) {
       final allowed = await _quota.canSend(subscribed: false);
       if (!allowed) return WhatsAppSendResult.quotaExceeded;
     }
@@ -47,8 +50,12 @@ class WhatsAppService {
   }
 
   static String quotaMessage(int limit, int used) {
-    return 'Free plan WhatsApp limit reached ($used of $limit this month). '
-        'Upgrade to send more messages.';
+    if (RemoteFlags.paywallEnabled) {
+      return 'Free plan WhatsApp limit reached ($used of $limit this month). '
+          'Upgrade to send more messages.';
+    }
+    return 'WhatsApp limit reached for this month ($used of $limit). '
+        'Try again next month.';
   }
 
   static void showResultSnackBar(

@@ -28,7 +28,23 @@ Use this alongside:
 | iOS Privacy Manifest | Done | `ios/Runner/PrivacyInfo.xcprivacy` |
 | Release build uses debug key | Fixed in Gradle | Requires your `key.properties` before Play upload |
 | CI/CD | Not configured | Add GitHub Actions / Codemagic when accounts exist |
-| In-app subscriptions | Paystack (web checkout) | **Policy risk** on both stores — see [Billing & store policy](#billing--store-policy) |
+| In-app subscriptions (v1 store) | **Disabled** | Default `REMOTE_PAYWALL=false` — no upgrade UI, no limits enforced |
+| Billing code in repo | Preserved | Tag `v1.0.0-with-paystack-billing`, branch `archive/with-paystack-billing` |
+
+---
+
+## v1 store release strategy (no subscriptions)
+
+**Recommended for first Play Store / App Store submission.**
+
+| | Store build (v1) | Direct APK (later) |
+| --- | --- | --- |
+| `REMOTE_PAYWALL` | **Omit** (defaults `false`) | `--dart-define=REMOTE_PAYWALL=true` |
+| Upgrade / Paystack UI | Hidden | Shown when over free limit |
+| Customer / WhatsApp limits | Not enforced | Enforced on free tier |
+| Store listing copy | [`STORE_LISTING.md`](STORE_LISTING.md) v1 block | Billing copy when IAP ships |
+
+**Backup before billing changes:** git tag `v1.0.0-with-paystack-billing` and branch `archive/with-paystack-billing` point at the last commit with full Paystack UI available when `REMOTE_PAYWALL=true`. No need to fork or replace `main` — billing code remains in the repo, just not exposed in store builds.
 
 ---
 
@@ -58,18 +74,17 @@ Release builds must include compile-time defines (not `.env` files):
 flutter build appbundle --release \
   --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
   --dart-define=SUPABASE_ANON_KEY=YOUR_ANON_KEY \
-  --dart-define=SENTRY_DSN=https://YOUR_DSN@o....ingest.sentry.io/.... \
-  --dart-define=REMOTE_PAYWALL=true
+  --dart-define=SENTRY_DSN=https://YOUR_DSN@o....ingest.sentry.io/....
 ```
 
 | Define | Required for production? | Notes |
 | --- | --- | --- |
-| `SUPABASE_URL` | Yes (if sync/subscriptions) | Empty = no cloud sync |
-| `SUPABASE_ANON_KEY` | Yes (if sync/subscriptions) | Public anon key only |
+| `SUPABASE_URL` | Yes (if cloud sync) | Empty = no cloud sync |
+| `SUPABASE_ANON_KEY` | Yes (if cloud sync) | Public anon key only |
 | `SENTRY_DSN` | Recommended | Omit for first pilot if sensitive |
-| `REMOTE_PAYWALL` | When billing live | Default `false`; set `true` when Paystack is production-ready |
+| `REMOTE_PAYWALL` | **Store v1: omit** | Default `false`. Only set `true` for direct APK + Paystack builds |
 
-Apply Supabase migrations (`001`–`004`) before shipping. See [`PAYSTACK_SETUP.md`](PAYSTACK_SETUP.md).
+Apply Supabase migrations (`001`–`003`) before shipping cloud sync. Migration `004` (subscriptions) is optional for v1 store builds.
 
 ### 2. QA gate
 
@@ -133,8 +148,7 @@ cp android/key.properties.example android/key.properties
 ```bash
 flutter build appbundle --release \
   --dart-define=SUPABASE_URL=... \
-  --dart-define=SUPABASE_ANON_KEY=... \
-  --dart-define=REMOTE_PAYWALL=true
+  --dart-define=SUPABASE_ANON_KEY=...
 ```
 
 Output: `build/app/outputs/bundle/release/app-release.aab`
@@ -154,7 +168,7 @@ Upload in Play Console → **Production** (or **Internal testing** first) → **
   - Data encrypted in transit (Supabase TLS)
   - Users can request deletion (document contact in privacy policy)
 - [ ] **Store listing** — text from [`STORE_LISTING.md`](STORE_LISTING.md)
-- [ ] **Pricing** — Free app; describe subscriptions in description (not Play Billing products unless you migrate)
+- [ ] **Pricing** — Free app, no in-app purchases (v1)
 - [ ] **Countries** — Nigeria + any expansion markets
 - [ ] Internal testing track → promote to closed/open/production
 
@@ -199,8 +213,7 @@ Requires a **Mac with Xcode** for archive/upload (or CI macOS runner).
 ```bash
 flutter build ipa --release \
   --dart-define=SUPABASE_URL=... \
-  --dart-define=SUPABASE_ANON_KEY=... \
-  --dart-define=REMOTE_PAYWALL=true
+  --dart-define=SUPABASE_ANON_KEY=...
 ```
 
 Or in Xcode: **Product → Archive** → **Distribute App** → App Store Connect.
@@ -221,22 +234,18 @@ Output (CLI): `build/ios/ipa/*.ipa` — upload via **Transporter** app or `xcrun
 
 ---
 
-## Billing & store policy
+## Billing & store policy (v2 — after native IAP)
 
-TailorFlow subscriptions use **Paystack** via a **WebView checkout**, not Google Play Billing or StoreKit.
+**v1 store builds ship with billing UI hidden** (`REMOTE_PAYWALL=false`, default). No Paystack checkout, no upgrade prompts, no freemium caps enforced.
 
-| Store | Risk | Mitigation options |
-| --- | --- | --- |
-| **Google Play** | Digital features sold outside Play Billing may violate [Payments policy](https://support.google.com/googleplay/android-developer/answer/9858738) | (1) Ship v1 **without** paywall (`REMOTE_PAYWALL=false`) and enable billing later via Play Billing; (2) Limit Paystack to **physical/service** context if applicable; (3) Request policy guidance / use alternative distribution (APK sideload) outside Play |
-| **Apple App Store** | In-app digital unlocks generally require [IAP](https://developer.apple.com/app-store/review/guidelines/#business) | (1) v1 without in-app subscription UI; (2) Implement StoreKit for iOS subscriptions; (3) Reader/external-purchase exceptions unlikely to apply here |
+When you add subscriptions later, use **Google Play Billing** and **Apple StoreKit** — not Paystack inside store builds. Paystack remains valid for **direct APK** sideload (`REMOTE_PAYWALL=true`).
 
-**Practical recommendation for first store submission:**
+| Store | Requirement |
+| --- | --- |
+| **Google Play** | Digital unlocks need [Play Billing](https://support.google.com/googleplay/android-developer/answer/9858738) |
+| **Apple App Store** | Digital unlocks need [In-App Purchase](https://developer.apple.com/app-store/review/guidelines/#business) |
 
-1. Submit with `REMOTE_PAYWALL=false` (free tier only) to reduce review friction.
-2. Enable Paystack paywall on **direct APK** distribution first ([`docs/BRANDING.md`](BRANDING.md)).
-3. Plan StoreKit + Play Billing integration before turning on paid tiers in store builds.
-
-Document your chosen approach in App Review notes if you ship with Paystack enabled.
+See tag `v1.0.0-with-paystack-billing` and [`PAYSTACK_SETUP.md`](PAYSTACK_SETUP.md) for the Paystack path used on direct distribution.
 
 ---
 
@@ -313,6 +322,5 @@ flutter build ipa --release \
 - [ ] Register Play Console + Apple Developer accounts
 - [ ] Complete Play Data safety + Apple App Privacy questionnaires
 - [ ] Capture store screenshots on real devices
-- [ ] Decide paywall strategy for store builds (see [Billing & store policy](#billing--store-policy))
 - [ ] Run full [`PILOT_QA.md`](../PILOT_QA.md) matrix
 - [ ] Set up CI/CD for repeatable signed builds
