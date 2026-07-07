@@ -2,12 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/branding_scope.dart';
+import '../../data/billing/remote_flags.dart';
 import '../../data/data_layer.dart';
 import '../../data/models/customer_list_item.dart';
 import '../../data/whatsapp/whatsapp_service.dart';
 import '../whatsapp/whatsapp_templates.dart';
 
 enum PromoDiscountKind { percent, fixedNgn }
+
+bool promoWhatsAppQuotaWouldBlock({
+  required bool paywallEnabled,
+  required bool subscribed,
+  required bool freeWhatsAppUnlimited,
+  required int monthlyLimit,
+  required int usedThisMonth,
+  required int targetCount,
+}) {
+  if (!paywallEnabled || subscribed || freeWhatsAppUnlimited) {
+    return false;
+  }
+  return monthlyLimit - usedThisMonth < targetCount;
+}
 
 class PromoCampaignScreen extends StatefulWidget {
   const PromoCampaignScreen({super.key, required this.layer});
@@ -100,24 +115,29 @@ class _PromoCampaignScreenState extends State<PromoCampaignScreen> {
     }
 
     final subscribed = await widget.layer.subscriptions.isActive();
-    if (!subscribed) {
+    if (!subscribed && RemoteFlags.paywallEnabled) {
       final config = await widget.layer.planLimits.getConfig();
-      if (!config.freeWhatsAppUnlimited) {
-        final used = await widget.layer.whatsappQuota.usedThisMonth();
-        final needed = targets.length;
-        final left = config.freeWhatsAppMonthlyLimit - used;
-        if (left < needed) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'This promo needs $needed WhatsApp sends but you have $left left '
-                'this month on the free plan.',
-              ),
+      final used = await widget.layer.whatsappQuota.usedThisMonth();
+      final needed = targets.length;
+      final left = config.freeWhatsAppMonthlyLimit - used;
+      if (promoWhatsAppQuotaWouldBlock(
+        paywallEnabled: RemoteFlags.paywallEnabled,
+        subscribed: subscribed,
+        freeWhatsAppUnlimited: config.freeWhatsAppUnlimited,
+        monthlyLimit: config.freeWhatsAppMonthlyLimit,
+        usedThisMonth: used,
+        targetCount: needed,
+      )) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'This promo needs $needed WhatsApp sends but you have $left left '
+              'this month on the free plan.',
             ),
-          );
-          return;
-        }
+          ),
+        );
+        return;
       }
     }
 
