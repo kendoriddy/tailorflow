@@ -11,6 +11,7 @@ enum OutboxOpType {
   upsertPayment,
   upsertOrderAttachment,
   deleteCustomer,
+  deletePayment,
 }
 
 class OutboxRepository {

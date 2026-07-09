@@ -127,7 +127,11 @@ ORDER BY p.paid_at DESC
     if (existing == null) return;
     await _db.raw.delete('payments', where: 'id = ?', whereArgs: [id]);
     await _bumpCustomerUpdatedAtForOrder(existing.orderId);
-    // v1 core flow is offline-first; deletes are local only for now.
+    await _outbox.enqueue(
+      type: OutboxOpType.deletePayment,
+      entityId: id,
+      payload: {'id': id},
+    );
   }
 
   Future<void> _bumpCustomerUpdatedAtForOrder(String orderId) async {

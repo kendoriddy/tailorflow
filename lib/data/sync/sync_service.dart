@@ -274,6 +274,13 @@ class SyncService {
             .update({'deleted_at': payload['deleted_at']}).eq(
                 'id', payload['id'] as String);
         break;
+      case 'deletePayment':
+        await client
+            .from('payments')
+            .delete()
+            .eq('id', payload['id'] as String)
+            .eq('shop_id', shopId);
+        break;
       default:
         debugPrint('Unknown outbox op: $type');
     }
