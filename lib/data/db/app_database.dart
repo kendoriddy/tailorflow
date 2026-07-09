@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -7,6 +7,9 @@ import 'db_factory.dart';
 
 class AppDatabase {
   AppDatabase._(this._db);
+
+  @visibleForTesting
+  AppDatabase.forTesting(this._db);
 
   final Database _db;
 
