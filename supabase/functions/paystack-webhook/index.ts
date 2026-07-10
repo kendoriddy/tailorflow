@@ -175,15 +175,16 @@ serve(async (req) => {
         const sub = data.subscription as
           { subscription_code?: string } | undefined;
 
+        const metaShopId = shopIdFromMeta();
         const codeShop =
-          session || shopIdFromMeta()
+          session || metaShopId
             ? null
             : await findShopByPaystackCodes(
                 admin,
                 sub?.subscription_code,
                 customer?.customer_code,
               );
-        const shopId = session?.shop_id ?? shopIdFromMeta() ?? codeShop?.id;
+        const shopId = session?.shop_id ?? metaShopId ?? codeShop?.id;
         if (!shopId) break;
 
         const plan = (normalizedPlan(session?.plan) ??

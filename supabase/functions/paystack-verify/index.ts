@@ -142,10 +142,7 @@ serve(async (req) => {
       throw new Error("Payment does not belong to this shop");
     }
 
-    const plan: SubscriptionPlan =
-      sessionPlan ??
-      data.metadata?.plan ??
-      (data.plan?.interval === "annually" ? "yearly" : "monthly");
+    const plan: SubscriptionPlan = sessionPlan;
     const periodEnd = periodEndFromPlan(plan);
 
     await activateShopSubscription(admin, {

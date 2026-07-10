@@ -1,5 +1,5 @@
--- Idempotency guard for Paystack charge.success events that do not have a
--- TailorFlow checkout session, such as recurring subscription renewals.
+-- Idempotency guard for Paystack charge.success events, including recurring
+-- subscription renewals that do not have a TailorFlow checkout session.
 
 create table if not exists public.paystack_processed_payments (
   reference text primary key,
