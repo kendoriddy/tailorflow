@@ -23,20 +23,22 @@ async function currentSubscriptionPayload(
     .maybeSingle();
   if (error) throw error;
 
-  const status = typeof shop?.subscription_status === "string"
-    ? shop.subscription_status
-    : "free";
-  const periodEnd = typeof shop?.subscription_period_end === "string"
-    ? shop.subscription_period_end
-    : null;
+  const status =
+    typeof shop?.subscription_status === "string"
+      ? shop.subscription_status
+      : "free";
+  const periodEnd =
+    typeof shop?.subscription_period_end === "string"
+      ? shop.subscription_period_end
+      : null;
   const storedPlan = shop?.subscription_plan;
-  const plan: SubscriptionPlan = storedPlan === "monthly" ||
-      storedPlan === "yearly"
-    ? storedPlan
-    : fallbackPlan;
+  const plan: SubscriptionPlan =
+    storedPlan === "monthly" || storedPlan === "yearly"
+      ? storedPlan
+      : fallbackPlan;
   const periodEndTime = periodEnd ? Date.parse(periodEnd) : null;
-  const active = status === "active" &&
-    (!periodEndTime || periodEndTime > Date.now());
+  const active =
+    status === "active" && (!periodEndTime || periodEndTime > Date.now());
 
   return {
     active,
