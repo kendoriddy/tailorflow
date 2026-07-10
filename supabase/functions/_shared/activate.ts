@@ -11,16 +11,22 @@ export async function activateShopSubscription(
     periodEnd?: string | null;
   },
 ): Promise<void> {
+  const updates: Record<string, string | null> = {
+    subscription_status: "active",
+    subscription_plan: params.plan,
+    subscription_period_end: params.periodEnd ?? null,
+    subscription_updated_at: new Date().toISOString(),
+  };
+  if (params.paystackSubscriptionCode) {
+    updates.paystack_subscription_code = params.paystackSubscriptionCode;
+  }
+  if (params.paystackCustomerCode) {
+    updates.paystack_customer_code = params.paystackCustomerCode;
+  }
+
   const { error } = await admin
     .from("shops")
-    .update({
-      subscription_status: "active",
-      subscription_plan: params.plan,
-      paystack_subscription_code: params.paystackSubscriptionCode ?? null,
-      paystack_customer_code: params.paystackCustomerCode ?? null,
-      subscription_period_end: params.periodEnd ?? null,
-      subscription_updated_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq("id", params.shopId);
   if (error) throw error;
 }

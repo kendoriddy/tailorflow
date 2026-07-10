@@ -11,6 +11,55 @@ import {
   userClient,
 } from "../_shared/supabase.ts";
 
+async function currentSubscriptionPayload(
+  admin: ReturnType<typeof serviceClient>,
+  shopId: string,
+  fallbackPlan: SubscriptionPlan,
+) {
+  const { data: shop, error } = await admin
+    .from("shops")
+    .select("subscription_status, subscription_plan, subscription_period_end")
+    .eq("id", shopId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const status = typeof shop?.subscription_status === "string"
+    ? shop.subscription_status
+    : "free";
+  const periodEnd = typeof shop?.subscription_period_end === "string"
+    ? shop.subscription_period_end
+    : null;
+  const storedPlan = shop?.subscription_plan;
+  const plan: SubscriptionPlan = storedPlan === "monthly" ||
+      storedPlan === "yearly"
+    ? storedPlan
+    : fallbackPlan;
+  const periodEndTime = periodEnd ? Date.parse(periodEnd) : null;
+  const active = status === "active" &&
+    (!periodEndTime || periodEndTime > Date.now());
+
+  return {
+    active,
+    plan,
+    subscription_status: status,
+    subscription_period_end: periodEnd,
+  };
+}
+
+async function markCheckoutCompleted(
+  admin: ReturnType<typeof serviceClient>,
+  reference: string,
+): Promise<void> {
+  const { error } = await admin
+    .from("paystack_checkout_sessions")
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("reference", reference);
+  if (error) throw error;
+}
+
 serve(async (req) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -31,6 +80,44 @@ serve(async (req) => {
 
     const userSb = userClient(authHeader);
     const shopId = await resolveShopId(userSb);
+    const admin = serviceClient();
+
+    const { data: session, error: sessErr } = await admin
+      .from("paystack_checkout_sessions")
+      .select("plan, shop_id, status")
+      .eq("reference", reference)
+      .maybeSingle();
+    if (sessErr) throw sessErr;
+    if (!session) throw new Error("Checkout session not found");
+    if (session.shop_id !== shopId) {
+      throw new Error("Checkout session shop mismatch");
+    }
+
+    const sessionPlan = session.plan as SubscriptionPlan;
+    if (sessionPlan !== "monthly" && sessionPlan !== "yearly") {
+      throw new Error("Invalid checkout session plan");
+    }
+    if (session.status === "completed") {
+      return jsonResponse(
+        await currentSubscriptionPayload(admin, shopId, sessionPlan),
+      );
+    }
+    if (session.status !== "pending") {
+      throw new Error(`Checkout session is ${session.status}`);
+    }
+
+    const { data: processed, error: processedErr } = await admin
+      .from("paystack_processed_payments")
+      .select("reference")
+      .eq("reference", reference)
+      .maybeSingle();
+    if (processedErr) throw processedErr;
+    if (processed) {
+      await markCheckoutCompleted(admin, reference);
+      return jsonResponse(
+        await currentSubscriptionPayload(admin, shopId, sessionPlan),
+      );
+    }
 
     const verify = await paystackRequest<{
       data: {
@@ -53,44 +140,27 @@ serve(async (req) => {
       throw new Error("Payment does not belong to this shop");
     }
 
-    const admin = serviceClient();
-
-    const { data: session, error: sessErr } = await admin
-      .from("paystack_checkout_sessions")
-      .select("plan, shop_id")
-      .eq("reference", reference)
-      .maybeSingle();
-    if (sessErr) throw sessErr;
-
     const plan: SubscriptionPlan =
-      session?.plan ??
+      sessionPlan ??
       data.metadata?.plan ??
       (data.plan?.interval === "annually" ? "yearly" : "monthly");
-
-    if (session?.shop_id && session.shop_id !== shopId) {
-      throw new Error("Checkout session shop mismatch");
-    }
+    const periodEnd = periodEndFromPlan(plan);
 
     await activateShopSubscription(admin, {
       shopId,
       plan,
       paystackSubscriptionCode: data.subscription?.subscription_code ?? null,
       paystackCustomerCode: data.customer?.customer_code ?? null,
-      periodEnd: periodEndFromPlan(plan),
+      periodEnd,
     });
 
-    await admin
-      .from("paystack_checkout_sessions")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("reference", reference);
+    await markCheckoutCompleted(admin, reference);
 
     return jsonResponse({
       active: true,
       plan,
       subscription_status: "active",
+      subscription_period_end: periodEnd,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
