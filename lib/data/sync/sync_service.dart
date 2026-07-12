@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../billing/plan_limits_service.dart';
@@ -295,7 +294,7 @@ class SyncService {
         )) as List<dynamic>;
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
-      await _db.raw.insert(
+      await _upsertPulledRow(
         'customers',
         {
           'id': m['id'],
@@ -310,7 +309,6 @@ class SyncService {
           'updated_at': m['updated_at'],
           'deleted_at': m['deleted_at'],
         },
-        conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
     return rows.length;
@@ -322,7 +320,7 @@ class SyncService {
         )) as List<dynamic>;
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
-      await _db.raw.insert(
+      await _upsertPulledRow(
         'measurement_profiles',
         {
           'id': m['id'],
@@ -339,7 +337,6 @@ class SyncService {
           'notes': m['notes'],
           'updated_at': m['updated_at'],
         },
-        conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
     return rows.length;
@@ -351,7 +348,7 @@ class SyncService {
         )) as List<dynamic>;
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
-      await _db.raw.insert(
+      await _upsertPulledRow(
         'orders',
         {
           'id': m['id'],
@@ -364,7 +361,6 @@ class SyncService {
           'created_at': m['created_at'],
           'updated_at': m['updated_at'],
         },
-        conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
     return rows.length;
@@ -376,7 +372,7 @@ class SyncService {
         )) as List<dynamic>;
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
-      await _db.raw.insert(
+      await _upsertPulledRow(
         'payments',
         {
           'id': m['id'],
@@ -385,7 +381,6 @@ class SyncService {
           'paid_at': m['paid_at'],
           'note': m['note'],
         },
-        conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
     return rows.length;
@@ -397,7 +392,7 @@ class SyncService {
         )) as List<dynamic>;
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
-      await _db.raw.insert(
+      await _upsertPulledRow(
         'order_attachments',
         {
           'id': m['id'],
@@ -406,10 +401,30 @@ class SyncService {
           'mime_type': m['mime_type'] ?? 'image/jpeg',
           'created_at': m['created_at'],
         },
-        conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
     return rows.length;
+  }
+
+  Future<void> _upsertPulledRow(
+    String table,
+    Map<String, Object?> values,
+  ) async {
+    final id = values['id'];
+    if (id == null) {
+      throw StateError('Pulled $table row is missing id.');
+    }
+
+    final updateValues = Map<String, Object?>.from(values)..remove('id');
+    final updated = await _db.raw.update(
+      table,
+      updateValues,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (updated == 0) {
+      await _db.raw.insert(table, values);
+    }
   }
 
   String _toReadableError(Object error) {
