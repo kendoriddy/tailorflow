@@ -122,6 +122,7 @@ class SyncService {
 
       final ops = await _outbox.pendingOps();
       var pushed = 0;
+      Object? uploadError;
       for (final op in ops) {
         final id = op['id']! as String;
         try {
@@ -130,19 +131,42 @@ class SyncService {
           pushed++;
         } catch (e, st) {
           debugPrint('TailorFlow sync failed: $e\n$st');
-          final pending = (await _outbox.pendingOps()).length;
-          return SyncReport(
-            success: false,
-            message: 'Sync failed: ${_toReadableError(e)}',
-            pushed: pushed,
-            pending: pending,
-          );
+          uploadError = e;
+          break;
         }
       }
-      final pulled = await _pullFromRemote(client);
-      await _planLimits?.refreshFromRemote();
-      await _subscriptions?.syncEntitlement();
+      var pulled = 0;
+      try {
+        pulled = await _pullFromRemote(client);
+        await _planLimits?.refreshFromRemote();
+        await _subscriptions?.syncEntitlement();
+      } catch (e, st) {
+        debugPrint('TailorFlow sync pull failed: $e\n$st');
+        final pending = (await _outbox.pendingOps()).length;
+        final uploadMessage = uploadError == null
+            ? ''
+            : ' Upload also failed: ${_toReadableError(uploadError)}.';
+        return SyncReport(
+          success: false,
+          message: 'Sync failed: ${_toReadableError(e)}.$uploadMessage',
+          pushed: pushed,
+          pending: pending,
+        );
+      }
       final pending = (await _outbox.pendingOps()).length;
+      if (uploadError != null) {
+        return SyncReport(
+          success: false,
+          message:
+              'Sync partially completed. Uploaded $pushed '
+              'change${pushed == 1 ? '' : 's'}, downloaded $pulled '
+              'row${pulled == 1 ? '' : 's'}. Upload failed: '
+              '${_toReadableError(uploadError)}',
+          pushed: pushed,
+          pulled: pulled,
+          pending: pending,
+        );
+      }
       return SyncReport(
         success: true,
         message:
