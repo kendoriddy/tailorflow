@@ -139,7 +139,7 @@ cp android/key.properties.example android/key.properties
 # Edit: storePassword, keyPassword, keyAlias, storeFile
 ```
 
-`android/app/build.gradle.kts` reads `key.properties` for release signing when the file exists.
+`android/app/build.gradle` reads `key.properties` for release signing when the file exists.
 
 **Play App Signing:** Enroll when creating the app. Google holds the app signing key; you upload with the upload key above.
 
