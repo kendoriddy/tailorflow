@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../billing/plan_limits_service.dart';
 import '../billing/subscription_service.dart';
 import '../db/app_database.dart';
+import 'sync_conflict.dart';
 import 'outbox_repository.dart';
 
 class SyncReport {
@@ -240,22 +241,53 @@ class SyncService {
 
     switch (type) {
       case 'upsertCustomer':
+        final hydrated =
+            await _hydrateCreatedAt(table: 'customers', payload: payload);
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'customers',
+          id: hydrated['id'],
+          localTimestamp: hydrated['updated_at'],
+        )) {
+          debugPrint('Skipped stale customer sync op for ${hydrated['id']}');
+          break;
+        }
         await client.from('customers').upsert(
               _payloadWithShop(
-                await _hydrateCreatedAt(table: 'customers', payload: payload),
+                hydrated,
                 shopId,
               ),
             );
         break;
       case 'upsertMeasurement':
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'measurement_profiles',
+          id: payload['id'],
+          localTimestamp: payload['updated_at'],
+        )) {
+          debugPrint('Skipped stale measurement sync op for ${payload['id']}');
+          break;
+        }
         await client
             .from('measurement_profiles')
             .upsert(_payloadWithShop(payload, shopId));
         break;
       case 'upsertOrder':
+        final hydrated =
+            await _hydrateCreatedAt(table: 'orders', payload: payload);
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'orders',
+          id: hydrated['id'],
+          localTimestamp: hydrated['updated_at'],
+        )) {
+          debugPrint('Skipped stale order sync op for ${hydrated['id']}');
+          break;
+        }
         await client.from('orders').upsert(
               _payloadWithShop(
-                await _hydrateCreatedAt(table: 'orders', payload: payload),
+                hydrated,
                 shopId,
               ),
             );
@@ -269,14 +301,46 @@ class SyncService {
             .upsert(_payloadWithShop(payload, shopId));
         break;
       case 'deleteCustomer':
+        final deletedAt = payload['updated_at'] ?? payload['deleted_at'];
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'customers',
+          id: payload['id'],
+          localTimestamp: deletedAt,
+        )) {
+          debugPrint('Skipped stale customer delete for ${payload['id']}');
+          break;
+        }
         await client
             .from('customers')
-            .update({'deleted_at': payload['deleted_at']}).eq(
-                'id', payload['id'] as String);
+            .update({
+              'deleted_at': payload['deleted_at'],
+              'updated_at': deletedAt,
+            })
+            .eq('id', payload['id'] as String);
         break;
       default:
         debugPrint('Unknown outbox op: $type');
     }
+  }
+
+  Future<bool> _remoteHasNewerVersion(
+    SupabaseClient client, {
+    required String table,
+    required Object? id,
+    required Object? localTimestamp,
+  }) async {
+    final rowId = id as String?;
+    if (rowId == null) return false;
+    final row = await client
+        .from(table)
+        .select('updated_at')
+        .eq('id', rowId)
+        .maybeSingle();
+    return remoteTimestampWins(
+      remoteTimestamp: row?['updated_at'],
+      localTimestamp: localTimestamp,
+    );
   }
 
   Future<int> _pullFromRemote(SupabaseClient client) async {
