@@ -175,7 +175,7 @@ ORDER BY c.updated_at DESC
     final id = _uuid.v4();
     final now = DateTime.now().millisecondsSinceEpoch;
     final norm = normalizePhoneDigits(phone);
-    await _db.raw.insert('customers', {
+    final row = {
       'id': id,
       'name': name.trim(),
       'phone': phone?.trim(),
@@ -187,59 +187,62 @@ ORDER BY c.updated_at DESC
       'created_at': now,
       'updated_at': now,
       'deleted_at': null,
+    };
+    final payload = {
+      'id': id,
+      'name': name.trim(),
+      'phone': phone?.trim(),
+      'phone_norm': norm,
+      'birth_day': null,
+      'birth_month': null,
+      'birth_year': null,
+      'birthday_consent': 0,
+      'created_at': now,
+      'updated_at': now,
+    };
+    await _db.raw.transaction((txn) async {
+      await txn.insert('customers', row);
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertCustomer,
+        entityId: id,
+        payload: payload,
+      );
     });
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertCustomer,
-      entityId: id,
-      payload: {
-        'id': id,
-        'name': name.trim(),
-        'phone': phone?.trim(),
-        'phone_norm': norm,
-        'birth_day': null,
-        'birth_month': null,
-        'birth_year': null,
-        'birthday_consent': 0,
-        'created_at': now,
-        'updated_at': now,
-      },
-    );
     return id;
   }
 
   Future<void> updateCustomer(Customer c) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.raw.update(
-      'customers',
-      {
-        'name': c.name.trim(),
-        'phone': c.phone?.trim(),
-        'phone_norm': normalizePhoneDigits(c.phone),
-        'birth_day': c.birthDay,
-        'birth_month': c.birthMonth,
-        'birth_year': c.birthYear,
-        'birthday_consent': c.birthdayConsent ? 1 : 0,
-        'updated_at': now,
-      },
-      where: 'id = ?',
-      whereArgs: [c.id],
-    );
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertCustomer,
-      entityId: c.id,
-      payload: {
-        'id': c.id,
-        'name': c.name.trim(),
-        'phone': c.phone?.trim(),
-        'phone_norm': normalizePhoneDigits(c.phone),
-        'birth_day': c.birthDay,
-        'birth_month': c.birthMonth,
-        'birth_year': c.birthYear,
-        'birthday_consent': c.birthdayConsent ? 1 : 0,
-        'created_at': c.createdAt.millisecondsSinceEpoch,
-        'updated_at': now,
-      },
-    );
+    final updates = {
+      'name': c.name.trim(),
+      'phone': c.phone?.trim(),
+      'phone_norm': normalizePhoneDigits(c.phone),
+      'birth_day': c.birthDay,
+      'birth_month': c.birthMonth,
+      'birth_year': c.birthYear,
+      'birthday_consent': c.birthdayConsent ? 1 : 0,
+      'updated_at': now,
+    };
+    final payload = {
+      'id': c.id,
+      ...updates,
+      'created_at': c.createdAt.millisecondsSinceEpoch,
+    };
+    await _db.raw.transaction((txn) async {
+      await txn.update(
+        'customers',
+        updates,
+        where: 'id = ?',
+        whereArgs: [c.id],
+      );
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertCustomer,
+        entityId: c.id,
+        payload: payload,
+      );
+    });
   }
 
   Future<void> upsertBirthdayDetails({
@@ -250,51 +253,63 @@ ORDER BY c.updated_at DESC
     required bool consent,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.raw.update(
-      'customers',
-      {
-        'birth_day': birthDay,
-        'birth_month': birthMonth,
-        'birth_year': birthYear,
-        'birthday_consent': consent ? 1 : 0,
-        'updated_at': now,
-      },
-      where: 'id = ?',
-      whereArgs: [customerId],
-    );
-    final c = await getById(customerId);
-    if (c == null) return;
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertCustomer,
-      entityId: c.id,
-      payload: {
-        'id': c.id,
-        'name': c.name.trim(),
-        'phone': c.phone?.trim(),
-        'phone_norm': normalizePhoneDigits(c.phone),
-        'created_at': c.createdAt.millisecondsSinceEpoch,
-        'birth_day': birthDay,
-        'birth_month': birthMonth,
-        'birth_year': birthYear,
-        'birthday_consent': consent ? 1 : 0,
-        'updated_at': now,
-      },
-    );
+    await _db.raw.transaction((txn) async {
+      await txn.update(
+        'customers',
+        {
+          'birth_day': birthDay,
+          'birth_month': birthMonth,
+          'birth_year': birthYear,
+          'birthday_consent': consent ? 1 : 0,
+          'updated_at': now,
+        },
+        where: 'id = ?',
+        whereArgs: [customerId],
+      );
+      final rows = await txn.query(
+        'customers',
+        where: 'id = ?',
+        whereArgs: [customerId],
+        limit: 1,
+      );
+      if (rows.isEmpty) return;
+      final c = _mapCustomer(rows.first);
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertCustomer,
+        entityId: c.id,
+        payload: {
+          'id': c.id,
+          'name': c.name.trim(),
+          'phone': c.phone?.trim(),
+          'phone_norm': normalizePhoneDigits(c.phone),
+          'created_at': c.createdAt.millisecondsSinceEpoch,
+          'birth_day': birthDay,
+          'birth_month': birthMonth,
+          'birth_year': birthYear,
+          'birthday_consent': consent ? 1 : 0,
+          'updated_at': now,
+        },
+      );
+    });
   }
 
   Future<void> softDelete(String id) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.raw.update(
-      'customers',
-      {'deleted_at': now, 'updated_at': now},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await _outbox.enqueue(
-      type: OutboxOpType.deleteCustomer,
-      entityId: id,
-      payload: {'id': id, 'deleted_at': now},
-    );
+    await _db.raw.transaction((txn) async {
+      await txn.update(
+        'customers',
+        {'deleted_at': now, 'updated_at': now},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.deleteCustomer,
+        entityId: id,
+        payload: {'id': id, 'deleted_at': now},
+      );
+    });
   }
 
   Future<MeasurementProfile?> defaultMeasurements(String customerId) async {
@@ -325,61 +340,51 @@ ORDER BY c.updated_at DESC
     final existing = await defaultMeasurements(customerId);
     final id = existing?.id ?? _uuid.v4();
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (existing == null) {
-      await _db.raw.insert('measurement_profiles', {
-        'id': id,
-        'customer_id': customerId,
-        'label': label,
-        'chest': chest,
-        'waist': waist,
-        'hip': hip,
-        'length': length,
-        'sleeve': sleeve,
-        'shoulder': shoulder,
-        'neck': neck,
-        'inseam': inseam,
-        'notes': notes,
-        'updated_at': now,
-      });
-    } else {
-      await _db.raw.update(
-        'measurement_profiles',
-        {
-          'label': label,
-          'chest': chest,
-          'waist': waist,
-          'hip': hip,
-          'length': length,
-          'sleeve': sleeve,
-          'shoulder': shoulder,
-          'neck': neck,
-          'inseam': inseam,
-          'notes': notes,
-          'updated_at': now,
-        },
-        where: 'id = ?',
-        whereArgs: [id],
+    final payload = {
+      'id': id,
+      'customer_id': customerId,
+      'label': label,
+      'chest': chest,
+      'waist': waist,
+      'hip': hip,
+      'length': length,
+      'sleeve': sleeve,
+      'shoulder': shoulder,
+      'neck': neck,
+      'inseam': inseam,
+      'notes': notes,
+      'updated_at': now,
+    };
+    await _db.raw.transaction((txn) async {
+      if (existing == null) {
+        await txn.insert('measurement_profiles', payload);
+      } else {
+        await txn.update(
+          'measurement_profiles',
+          {
+            'label': label,
+            'chest': chest,
+            'waist': waist,
+            'hip': hip,
+            'length': length,
+            'sleeve': sleeve,
+            'shoulder': shoulder,
+            'neck': neck,
+            'inseam': inseam,
+            'notes': notes,
+            'updated_at': now,
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertMeasurement,
+        entityId: id,
+        payload: payload,
       );
-    }
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertMeasurement,
-      entityId: id,
-      payload: {
-        'id': id,
-        'customer_id': customerId,
-        'label': label,
-        'chest': chest,
-        'waist': waist,
-        'hip': hip,
-        'length': length,
-        'sleeve': sleeve,
-        'shoulder': shoulder,
-        'neck': neck,
-        'inseam': inseam,
-        'notes': notes,
-        'updated_at': now,
-      },
-    );
+    });
   }
 
   Customer _mapCustomer(Map<String, Object?> m) {
