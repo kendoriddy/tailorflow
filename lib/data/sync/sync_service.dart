@@ -48,6 +48,8 @@ class SyncService {
   final PlanLimitsService? _planLimits;
   final SubscriptionService? _subscriptions;
 
+  static const int _remotePageSize = 1000;
+
   StreamSubscription<List<ConnectivityResult>>? _sub;
   Timer? _timer;
   bool _flushing = false;
@@ -289,10 +291,51 @@ class SyncService {
     return total;
   }
 
+  @visibleForTesting
+  static Future<List<dynamic>> collectPagedRows({
+    required Future<List<dynamic>> Function(int from, int to) fetchPage,
+    int pageSize = _remotePageSize,
+  }) async {
+    if (pageSize <= 0) {
+      throw ArgumentError.value(pageSize, 'pageSize', 'must be positive');
+    }
+
+    final allRows = <dynamic>[];
+    var from = 0;
+    while (true) {
+      final to = from + pageSize - 1;
+      final rows = await fetchPage(from, to);
+      allRows.addAll(rows);
+      if (rows.length < pageSize) {
+        return allRows;
+      }
+      from += pageSize;
+    }
+  }
+
+  Future<List<dynamic>> _selectAllRemoteRows(
+    SupabaseClient client, {
+    required String table,
+    required String columns,
+  }) {
+    return collectPagedRows(
+      fetchPage: (from, to) async {
+        return (await client
+            .from(table)
+            .select(columns)
+            .order('id')
+            .range(from, to)) as List<dynamic>;
+      },
+    );
+  }
+
   Future<int> _pullCustomers(SupabaseClient client) async {
-    final rows = (await client.from('customers').select(
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'customers',
+      columns:
           'id, name, phone, phone_norm, birth_day, birth_month, birth_year, birthday_consent, created_at, updated_at, deleted_at',
-        )) as List<dynamic>;
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -317,9 +360,12 @@ class SyncService {
   }
 
   Future<int> _pullMeasurementProfiles(SupabaseClient client) async {
-    final rows = (await client.from('measurement_profiles').select(
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'measurement_profiles',
+      columns:
           'id, customer_id, label, chest, waist, hip, length, sleeve, shoulder, neck, inseam, notes, updated_at',
-        )) as List<dynamic>;
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -346,9 +392,12 @@ class SyncService {
   }
 
   Future<int> _pullOrders(SupabaseClient client) async {
-    final rows = (await client.from('orders').select(
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'orders',
+      columns:
           'id, customer_id, title, fabric_note, due_date, status, agreed_amount_ngn, created_at, updated_at',
-        )) as List<dynamic>;
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -371,9 +420,11 @@ class SyncService {
   }
 
   Future<int> _pullPayments(SupabaseClient client) async {
-    final rows = (await client.from('payments').select(
-          'id, order_id, amount_ngn, paid_at, note',
-        )) as List<dynamic>;
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'payments',
+      columns: 'id, order_id, amount_ngn, paid_at, note',
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -392,9 +443,11 @@ class SyncService {
   }
 
   Future<int> _pullOrderAttachments(SupabaseClient client) async {
-    final rows = (await client.from('order_attachments').select(
-          'id, order_id, image_base64, mime_type, created_at',
-        )) as List<dynamic>;
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'order_attachments',
+      columns: 'id, order_id, image_base64, mime_type, created_at',
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
