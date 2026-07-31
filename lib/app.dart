@@ -7,7 +7,6 @@ import 'core/branding_scope.dart';
 import 'core/shop_branding.dart';
 import 'core/theme/app_theme.dart';
 import 'data/data_layer_provider.dart';
-import 'features/auth/auth_screen.dart';
 import 'features/auth/update_password_screen.dart';
 import 'features/customers/customer_list_screen.dart';
 
@@ -90,8 +89,11 @@ class _AuthGateState extends State<_AuthGate> {
   @override
   Widget build(BuildContext context) {
     final configured = _url.isNotEmpty && _anon.isNotEmpty && _client != null;
+    Widget customerList() =>
+        CustomerListScreen(onBrandingChanged: widget.onBrandingChanged);
+
     if (!configured) {
-      return CustomerListScreen(onBrandingChanged: widget.onBrandingChanged);
+      return customerList();
     }
 
     final client = _client!;
@@ -106,14 +108,9 @@ class _AuthGateState extends State<_AuthGate> {
             },
           );
         }
-        if (client.auth.currentSession == null) {
-          return AuthScreen(
-            onAuthenticated: () {
-              if (mounted) setState(() {});
-            },
-          );
-        }
-        return CustomerListScreen(onBrandingChanged: widget.onBrandingChanged);
+        // Cloud sync is optional for store builds; do not block offline use when
+        // Supabase is configured but the shop has not signed in yet.
+        return customerList();
       },
     );
   }

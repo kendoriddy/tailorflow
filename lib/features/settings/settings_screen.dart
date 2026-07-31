@@ -10,6 +10,7 @@ import '../../data/billing/remote_flags.dart';
 import '../../data/billing/subscription_pricing.dart';
 import '../../data/billing/subscription_status.dart';
 import '../../data/data_layer.dart';
+import '../auth/auth_screen.dart';
 import '../billing/paywall_screen.dart';
 import 'backup_screen.dart';
 import 'branding_settings_screen.dart';
@@ -78,6 +79,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(content: Text(report.message)),
     );
     await _reload();
+  }
+
+  Future<void> _openCloudSignIn() async {
+    final signedIn = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        fullscreenDialog: true,
+        builder: (authContext) => AuthScreen(
+          onAuthenticated: () {
+            Navigator.of(authContext).pop(true);
+          },
+        ),
+      ),
+    );
+    if (signedIn == true && mounted) {
+      await _reload();
+    }
   }
 
   Future<_SyncIdentity> _loadSyncIdentity() async {
@@ -297,6 +314,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   side: BorderSide(color: chipColor.withOpacity(0.5)),
                   labelStyle: TextStyle(color: chipColor.shade700),
                 ),
+              );
+            },
+          ),
+          FutureBuilder<_SyncIdentity>(
+            future: _syncIdentity,
+            builder: (context, snap) {
+              final info = snap.data;
+              if (info == null || !info.configured || info.userId != null) {
+                return const SizedBox.shrink();
+              }
+              return ListTile(
+                leading: const Icon(Icons.login_outlined),
+                title: const Text('Sign in for cloud backup'),
+                subtitle: const Text(
+                  'Optional — sync this shop across devices when you want to.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _openCloudSignIn,
               );
             },
           ),
