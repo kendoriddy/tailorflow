@@ -11,6 +11,27 @@ val keystoreProperties = java.util.Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(keystorePropertiesFile.inputStream())
 }
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+
+fun requireKeystoreProperty(name: String): String =
+    (keystoreProperties[name] as String?)?.takeIf { it.isNotBlank() }
+        ?: throw org.gradle.api.GradleException(
+            "Missing '$name' in ${keystorePropertiesFile.path}. " +
+                "Copy key.properties.example and fill in the release upload keystore values.",
+        )
+
+gradle.taskGraph.whenReady {
+    val releaseRequested = allTasks.any {
+        it.name.contains("Release", ignoreCase = true)
+    }
+    if (releaseRequested && !hasReleaseKeystore) {
+        throw org.gradle.api.GradleException(
+            "Missing ${keystorePropertiesFile.path}. " +
+                "Release builds must use the Play upload keystore; " +
+                "copy key.properties.example to key.properties and fill it in.",
+        )
+    }
+}
 
 android {
     namespace = "ng.tailorflow.tailorflow_ng"
@@ -36,22 +57,18 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+            if (hasReleaseKeystore) {
+                keyAlias = requireKeystoreProperty("keyAlias")
+                keyPassword = requireKeystoreProperty("keyPassword")
+                storeFile = file(requireKeystoreProperty("storeFile"))
+                storePassword = requireKeystoreProperty("storePassword")
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
