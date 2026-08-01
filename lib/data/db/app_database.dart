@@ -8,6 +8,8 @@ import 'db_factory.dart';
 class AppDatabase {
   AppDatabase._(this._db);
 
+  AppDatabase.forTesting(this._db);
+
   final Database _db;
 
   static const _name = 'tailorflow.db';

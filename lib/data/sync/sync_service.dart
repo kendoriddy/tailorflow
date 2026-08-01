@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../billing/plan_limits_service.dart';
 import '../billing/subscription_service.dart';
 import '../db/app_database.dart';
+import 'sync_conflict.dart';
 import 'outbox_repository.dart';
 
 class SyncReport {
@@ -47,6 +48,8 @@ class SyncService {
   final Connectivity _connectivity;
   final PlanLimitsService? _planLimits;
   final SubscriptionService? _subscriptions;
+
+  static const int _remotePageSize = 1000;
 
   StreamSubscription<List<ConnectivityResult>>? _sub;
   Timer? _timer;
@@ -240,22 +243,53 @@ class SyncService {
 
     switch (type) {
       case 'upsertCustomer':
+        final hydrated =
+            await _hydrateCreatedAt(table: 'customers', payload: payload);
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'customers',
+          id: hydrated['id'],
+          localTimestamp: hydrated['updated_at'],
+        )) {
+          debugPrint('Skipped stale customer sync op for ${hydrated['id']}');
+          break;
+        }
         await client.from('customers').upsert(
               _payloadWithShop(
-                await _hydrateCreatedAt(table: 'customers', payload: payload),
+                hydrated,
                 shopId,
               ),
             );
         break;
       case 'upsertMeasurement':
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'measurement_profiles',
+          id: payload['id'],
+          localTimestamp: payload['updated_at'],
+        )) {
+          debugPrint('Skipped stale measurement sync op for ${payload['id']}');
+          break;
+        }
         await client
             .from('measurement_profiles')
             .upsert(_payloadWithShop(payload, shopId));
         break;
       case 'upsertOrder':
+        final hydrated =
+            await _hydrateCreatedAt(table: 'orders', payload: payload);
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'orders',
+          id: hydrated['id'],
+          localTimestamp: hydrated['updated_at'],
+        )) {
+          debugPrint('Skipped stale order sync op for ${hydrated['id']}');
+          break;
+        }
         await client.from('orders').upsert(
               _payloadWithShop(
-                await _hydrateCreatedAt(table: 'orders', payload: payload),
+                hydrated,
                 shopId,
               ),
             );
@@ -269,14 +303,46 @@ class SyncService {
             .upsert(_payloadWithShop(payload, shopId));
         break;
       case 'deleteCustomer':
+        final deletedAt = payload['updated_at'] ?? payload['deleted_at'];
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'customers',
+          id: payload['id'],
+          localTimestamp: deletedAt,
+        )) {
+          debugPrint('Skipped stale customer delete for ${payload['id']}');
+          break;
+        }
         await client
             .from('customers')
-            .update({'deleted_at': payload['deleted_at']}).eq(
-                'id', payload['id'] as String);
+            .update({
+              'deleted_at': payload['deleted_at'],
+              'updated_at': deletedAt,
+            })
+            .eq('id', payload['id'] as String);
         break;
       default:
         debugPrint('Unknown outbox op: $type');
     }
+  }
+
+  Future<bool> _remoteHasNewerVersion(
+    SupabaseClient client, {
+    required String table,
+    required Object? id,
+    required Object? localTimestamp,
+  }) async {
+    final rowId = id as String?;
+    if (rowId == null) return false;
+    final row = await client
+        .from(table)
+        .select('updated_at')
+        .eq('id', rowId)
+        .maybeSingle();
+    return remoteTimestampWins(
+      remoteTimestamp: row?['updated_at'],
+      localTimestamp: localTimestamp,
+    );
   }
 
   Future<int> _pullFromRemote(SupabaseClient client) async {
@@ -289,10 +355,51 @@ class SyncService {
     return total;
   }
 
+  @visibleForTesting
+  static Future<List<dynamic>> collectPagedRows({
+    required Future<List<dynamic>> Function(int from, int to) fetchPage,
+    int pageSize = _remotePageSize,
+  }) async {
+    if (pageSize <= 0) {
+      throw ArgumentError.value(pageSize, 'pageSize', 'must be positive');
+    }
+
+    final allRows = <dynamic>[];
+    var from = 0;
+    while (true) {
+      final to = from + pageSize - 1;
+      final rows = await fetchPage(from, to);
+      allRows.addAll(rows);
+      if (rows.length < pageSize) {
+        return allRows;
+      }
+      from += pageSize;
+    }
+  }
+
+  Future<List<dynamic>> _selectAllRemoteRows(
+    SupabaseClient client, {
+    required String table,
+    required String columns,
+  }) {
+    return collectPagedRows(
+      fetchPage: (from, to) async {
+        return (await client
+            .from(table)
+            .select(columns)
+            .order('id')
+            .range(from, to)) as List<dynamic>;
+      },
+    );
+  }
+
   Future<int> _pullCustomers(SupabaseClient client) async {
-    final rows = (await client.from('customers').select(
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'customers',
+      columns:
           'id, name, phone, phone_norm, birth_day, birth_month, birth_year, birthday_consent, created_at, updated_at, deleted_at',
-        )) as List<dynamic>;
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -317,9 +424,12 @@ class SyncService {
   }
 
   Future<int> _pullMeasurementProfiles(SupabaseClient client) async {
-    final rows = (await client.from('measurement_profiles').select(
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'measurement_profiles',
+      columns:
           'id, customer_id, label, chest, waist, hip, length, sleeve, shoulder, neck, inseam, notes, updated_at',
-        )) as List<dynamic>;
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -346,9 +456,12 @@ class SyncService {
   }
 
   Future<int> _pullOrders(SupabaseClient client) async {
-    final rows = (await client.from('orders').select(
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'orders',
+      columns:
           'id, customer_id, title, fabric_note, due_date, status, agreed_amount_ngn, created_at, updated_at',
-        )) as List<dynamic>;
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -371,9 +484,11 @@ class SyncService {
   }
 
   Future<int> _pullPayments(SupabaseClient client) async {
-    final rows = (await client.from('payments').select(
-          'id, order_id, amount_ngn, paid_at, note',
-        )) as List<dynamic>;
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'payments',
+      columns: 'id, order_id, amount_ngn, paid_at, note',
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(
@@ -392,9 +507,11 @@ class SyncService {
   }
 
   Future<int> _pullOrderAttachments(SupabaseClient client) async {
-    final rows = (await client.from('order_attachments').select(
-          'id, order_id, image_base64, mime_type, created_at',
-        )) as List<dynamic>;
+    final rows = await _selectAllRemoteRows(
+      client,
+      table: 'order_attachments',
+      columns: 'id, order_id, image_base64, mime_type, created_at',
+    );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
       await _db.raw.insert(

@@ -55,7 +55,7 @@ class OutboxRepository {
     return _db.raw.query(
       'outbox_ops',
       where: 'processed_at IS NULL',
-      orderBy: 'created_at ASC',
+      orderBy: 'created_at ASC, rowid ASC',
     );
   }
 
