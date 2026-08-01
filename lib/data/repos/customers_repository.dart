@@ -293,7 +293,7 @@ ORDER BY c.updated_at DESC
     await _outbox.enqueue(
       type: OutboxOpType.deleteCustomer,
       entityId: id,
-      payload: {'id': id, 'deleted_at': now},
+      payload: {'id': id, 'deleted_at': now, 'updated_at': now},
     );
   }
 
