@@ -104,6 +104,91 @@ ORDER BY o.due_date ASC
     return clampNonNegativeBalance(agreedAmountNgn: agreed, paidSumNgn: paid);
   }
 
+  Future<String> createOrderWithInitialPayment({
+    required String customerId,
+    required String title,
+    String? fabricNote,
+    required DateTime dueDate,
+    OrderStatus status = OrderStatus.booked,
+    required int agreedAmountNgn,
+    int initialPaymentNgn = 0,
+    DateTime? paidAt,
+    List<NewOrderAttachmentInput> attachments =
+        const <NewOrderAttachmentInput>[],
+  }) async {
+    final orderId = _uuid.v4();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final trimmedTitle = title.trim();
+    final trimmedFabricNote = fabricNote?.trim();
+    final orderPayload = {
+      'id': orderId,
+      'customer_id': customerId,
+      'title': trimmedTitle,
+      'fabric_note': trimmedFabricNote,
+      'due_date': dueDate.millisecondsSinceEpoch,
+      'status': status.wireName,
+      'agreed_amount_ngn': agreedAmountNgn,
+      'created_at': now,
+      'updated_at': now,
+    };
+
+    await _db.raw.transaction((txn) async {
+      await txn.insert('orders', orderPayload);
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertOrder,
+        entityId: orderId,
+        payload: orderPayload,
+      );
+
+      for (final image in attachments) {
+        final attachmentId = _uuid.v4();
+        final attachmentPayload = {
+          'id': attachmentId,
+          'order_id': orderId,
+          'image_base64': image.imageBase64,
+          'mime_type': image.mimeType,
+          'created_at': now,
+        };
+        await txn.insert('order_attachments', attachmentPayload);
+        await _outbox.enqueueWithExecutor(
+          txn,
+          type: OutboxOpType.upsertOrderAttachment,
+          entityId: attachmentId,
+          payload: attachmentPayload,
+        );
+      }
+
+      if (initialPaymentNgn > 0) {
+        final paymentId = _uuid.v4();
+        final paymentTs = (paidAt ?? DateTime.now()).millisecondsSinceEpoch;
+        final paymentPayload = {
+          'id': paymentId,
+          'order_id': orderId,
+          'amount_ngn': initialPaymentNgn,
+          'paid_at': paymentTs,
+          'note': null,
+        };
+        await txn.insert('payments', paymentPayload);
+        await _outbox.enqueueWithExecutor(
+          txn,
+          type: OutboxOpType.upsertPayment,
+          entityId: paymentId,
+          payload: paymentPayload,
+        );
+      }
+
+      await txn.update(
+        'customers',
+        {'updated_at': now},
+        where: 'id = ?',
+        whereArgs: [customerId],
+      );
+    });
+
+    return orderId;
+  }
+
   Future<String> insertOrder({
     required String customerId,
     required String title,

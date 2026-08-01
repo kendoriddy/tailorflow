@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../db/app_database.dart';
@@ -25,8 +26,22 @@ class OutboxRepository {
     required String entityId,
     required Map<String, Object?> payload,
   }) async {
+    await enqueueWithExecutor(
+      _db.raw,
+      type: type,
+      entityId: entityId,
+      payload: payload,
+    );
+  }
+
+  Future<void> enqueueWithExecutor(
+    DatabaseExecutor executor, {
+    required OutboxOpType type,
+    required String entityId,
+    required Map<String, Object?> payload,
+  }) async {
     final id = _uuid.v4();
-    await _db.raw.insert('outbox_ops', {
+    await executor.insert('outbox_ops', {
       'id': id,
       'op_type': type.name,
       'entity_id': entityId,
@@ -40,7 +55,7 @@ class OutboxRepository {
     return _db.raw.query(
       'outbox_ops',
       where: 'processed_at IS NULL',
-      orderBy: 'created_at ASC',
+      orderBy: 'created_at ASC, rowid ASC',
     );
   }
 

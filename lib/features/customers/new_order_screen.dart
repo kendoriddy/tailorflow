@@ -100,25 +100,15 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
     }
     setState(() => _busy = true);
     try {
-      final orderId = await widget.layer.orders.insertOrder(
+      await widget.layer.orders.createOrderWithInitialPayment(
         customerId: widget.customerId,
         title: style,
         dueDate: _due,
         agreedAmountNgn: price,
+        initialPaymentNgn: paid,
+        paidAt: DateTime.now(),
+        attachments: _attachments,
       );
-      if (_attachments.isNotEmpty) {
-        await widget.layer.orders.addAttachments(
-          orderId: orderId,
-          images: _attachments,
-        );
-      }
-      if (paid > 0) {
-        await widget.layer.payments.insertPayment(
-          orderId: orderId,
-          amountNgn: paid,
-          paidAt: DateTime.now(),
-        );
-      }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } finally {
