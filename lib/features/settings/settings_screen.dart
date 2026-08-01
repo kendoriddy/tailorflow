@@ -343,9 +343,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                  const SnackBar(
                     content: Text(
                       'Could not open privacy policy. Visit ${Brand.privacyPolicyUrl}',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_forever_outlined),
+            title: const Text('Delete account and cloud data'),
+            subtitle: const Text('Open deletion request instructions'),
+            trailing: const Icon(Icons.open_in_new, size: 20),
+            onTap: () async {
+              final uri = Uri.parse(Brand.accountDeletionUrl);
+              if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Could not open deletion instructions. Visit ${Brand.accountDeletionUrl}',
                     ),
                   ),
                 );

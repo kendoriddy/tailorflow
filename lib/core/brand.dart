@@ -20,6 +20,10 @@ class Brand {
   static const String privacyPolicyUrl =
       'https://tailorflow.kennyonifade.com/privacy.html';
 
+  /// Public instructions for requesting account and associated data deletion.
+  static const String accountDeletionUrl =
+      'https://tailorflow.kennyonifade.com/delete-account.html';
+
   /// Contact for privacy / data requests (also shown on the website policy).
   static const String privacyContactEmail = 'onifkay@gmail.com';
 

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delete your TailorFlow account</title>
+    <meta
+      name="description"
+      content="Request deletion of your TailorFlow account and associated cloud data."
+    />
+    <meta name="robots" content="index, follow" />
+    <link
+      rel="canonical"
+      href="https://tailorflow.kennyonifade.com/delete-account.html"
+    />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="site-config.js"></script>
+    <script src="apply-brand.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const cfg = window.SITE_CONFIG || {};
+        const name = cfg.appName || "TailorFlow";
+        const email = cfg.privacyContactEmail || "";
+        document.title = "Delete your " + name + " account";
+        document.querySelectorAll("[data-privacy-email]").forEach((el) => {
+          if (email) {
+            el.href =
+              "mailto:" +
+              email +
+              "?subject=" +
+              encodeURIComponent("[" + name + "] Account deletion request");
+            el.textContent = email;
+          }
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="logo" href="/" data-brand="appName">TailorFlow</a>
+        <nav aria-label="Primary">
+          <a href="privacy.html">Privacy policy</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container policy-page">
+      <h1>Delete your <span data-brand="appName">TailorFlow</span> account</h1>
+      <p class="policy-note">
+        You can request permanent deletion of your account and associated cloud
+        data at any time.
+      </p>
+
+      <h2>How to request deletion</h2>
+      <ol>
+        <li>
+          Email
+          <a href="mailto:onifkay@gmail.com" data-privacy-email
+            >onifkay@gmail.com</a
+          >
+          from the email address used for your
+          <span data-brand="appName">TailorFlow</span> account.
+        </li>
+        <li>
+          Use the subject <strong>Account deletion request</strong> and include
+          your shop name, if available.
+        </li>
+        <li>
+          We may ask you to verify account ownership before processing the
+          request.
+        </li>
+      </ol>
+      <p>
+        We will acknowledge your request and complete verified deletion requests
+        within 30 days.
+      </p>
+
+      <h2>Data that will be deleted</h2>
+      <ul>
+        <li>Your cloud sign-in account and authentication identifiers</li>
+        <li>Your shop profile and account membership</li>
+        <li>
+          Cloud-synced customers, phone numbers, measurements, notes, orders,
+          payments, and attachments belonging only to your shop
+        </li>
+        <li>Feedback associated with your account</li>
+      </ul>
+
+      <h2>Data that may be retained</h2>
+      <ul>
+        <li>
+          Data stored only on your device is not accessible to us. Delete it in
+          the app, clear the app's storage, or uninstall the app.
+        </li>
+        <li>
+          Data belonging to a shop shared with other account holders may remain
+          available to those account holders.
+        </li>
+        <li>
+          Encrypted provider backups may persist for a limited backup-retention
+          period before being overwritten.
+        </li>
+        <li>
+          Records may be retained when required for security, fraud prevention,
+          or legal compliance.
+        </li>
+      </ul>
+
+      <h2>Delete specific data without deleting your account</h2>
+      <p>
+        You can delete individual customers and their associated shop records
+        inside the app. For help deleting specific cloud data, email
+        <a href="mailto:onifkay@gmail.com" data-privacy-email
+          >onifkay@gmail.com</a
+        >.
+      </p>
+
+      <p><a href="privacy.html">Read the privacy policy</a></p>
+      <p><a href="/">← Back to home</a></p>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          &copy; <span id="year"></span>
+          <span data-brand="appName">TailorFlow</span>
+        </p>
+      </div>
+    </footer>
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+    <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+  </body>
+</html>
