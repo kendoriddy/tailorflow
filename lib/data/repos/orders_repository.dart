@@ -1,3 +1,4 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/utils/money.dart';
@@ -199,7 +200,7 @@ ORDER BY o.due_date ASC
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.raw.insert('orders', {
+    final payload = {
       'id': id,
       'customer_id': customerId,
       'title': title.trim(),
@@ -209,23 +210,17 @@ ORDER BY o.due_date ASC
       'agreed_amount_ngn': agreedAmountNgn,
       'created_at': now,
       'updated_at': now,
+    };
+    await _db.raw.transaction((txn) async {
+      await txn.insert('orders', payload);
+      await _bumpCustomerUpdatedAt(customerId, executor: txn);
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertOrder,
+        entityId: id,
+        payload: payload,
+      );
     });
-    await _bumpCustomerUpdatedAt(customerId);
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertOrder,
-      entityId: id,
-      payload: {
-        'id': id,
-        'customer_id': customerId,
-        'title': title.trim(),
-        'fabric_note': fabricNote?.trim(),
-        'due_date': dueDate.millisecondsSinceEpoch,
-        'status': status.wireName,
-        'agreed_amount_ngn': agreedAmountNgn,
-        'created_at': now,
-        'updated_at': now,
-      },
-    );
     return id;
   }
 
@@ -235,66 +230,68 @@ ORDER BY o.due_date ASC
   }) async {
     if (images.isEmpty) return;
     final now = DateTime.now().millisecondsSinceEpoch;
-    for (final image in images) {
-      final id = _uuid.v4();
-      await _db.raw.insert('order_attachments', {
-        'id': id,
-        'order_id': orderId,
-        'image_base64': image.imageBase64,
-        'mime_type': image.mimeType,
-        'created_at': now,
-      });
-      await _outbox.enqueue(
-        type: OutboxOpType.upsertOrderAttachment,
-        entityId: id,
-        payload: {
+    await _db.raw.transaction((txn) async {
+      for (final image in images) {
+        final id = _uuid.v4();
+        final payload = {
           'id': id,
           'order_id': orderId,
           'image_base64': image.imageBase64,
           'mime_type': image.mimeType,
           'created_at': now,
-        },
-      );
-    }
-    await _bumpCustomerUpdatedAtForOrder(orderId);
+        };
+        await txn.insert('order_attachments', payload);
+        await _outbox.enqueueWithExecutor(
+          txn,
+          type: OutboxOpType.upsertOrderAttachment,
+          entityId: id,
+          payload: payload,
+        );
+      }
+      await _bumpCustomerUpdatedAtForOrder(orderId, executor: txn);
+    });
   }
 
   Future<void> updateOrder(OrderRow o) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.raw.update(
-      'orders',
-      {
-        'title': o.title.trim(),
-        'fabric_note': o.fabricNote?.trim(),
-        'due_date': o.dueDate.millisecondsSinceEpoch,
-        'status': o.status.wireName,
-        'agreed_amount_ngn': o.agreedAmountNgn,
-        'updated_at': now,
-      },
-      where: 'id = ?',
-      whereArgs: [o.id],
-    );
-    await _bumpCustomerUpdatedAt(o.customerId);
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertOrder,
-      entityId: o.id,
-      payload: {
-        'id': o.id,
-        'customer_id': o.customerId,
-        'title': o.title.trim(),
-        'fabric_note': o.fabricNote?.trim(),
-        'due_date': o.dueDate.millisecondsSinceEpoch,
-        'status': o.status.wireName,
-        'agreed_amount_ngn': o.agreedAmountNgn,
-        'created_at': o.createdAt.millisecondsSinceEpoch,
-        'updated_at': now,
-      },
-    );
+    final updates = {
+      'title': o.title.trim(),
+      'fabric_note': o.fabricNote?.trim(),
+      'due_date': o.dueDate.millisecondsSinceEpoch,
+      'status': o.status.wireName,
+      'agreed_amount_ngn': o.agreedAmountNgn,
+      'updated_at': now,
+    };
+    final payload = {
+      'id': o.id,
+      'customer_id': o.customerId,
+      ...updates,
+      'created_at': o.createdAt.millisecondsSinceEpoch,
+    };
+    await _db.raw.transaction((txn) async {
+      await txn.update(
+        'orders',
+        updates,
+        where: 'id = ?',
+        whereArgs: [o.id],
+      );
+      await _bumpCustomerUpdatedAt(o.customerId, executor: txn);
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertOrder,
+        entityId: o.id,
+        payload: payload,
+      );
+    });
   }
 
-  Future<void> _bumpCustomerUpdatedAt(String customerId) async {
+  Future<void> _bumpCustomerUpdatedAt(
+    String customerId, {
+    DatabaseExecutor? executor,
+  }) async {
+    final db = executor ?? _db.raw;
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _db.raw.update(
+    await db.update(
       'customers',
       {'updated_at': now},
       where: 'id = ?',
@@ -302,15 +299,19 @@ ORDER BY o.due_date ASC
     );
   }
 
-  Future<void> _bumpCustomerUpdatedAtForOrder(String orderId) async {
-    final rows = await _db.raw.rawQuery(
+  Future<void> _bumpCustomerUpdatedAtForOrder(
+    String orderId, {
+    DatabaseExecutor? executor,
+  }) async {
+    final db = executor ?? _db.raw;
+    final rows = await db.rawQuery(
       'SELECT customer_id FROM orders WHERE id = ?',
       [orderId],
     );
     if (rows.isEmpty) return;
     final customerId = rows.first['customer_id'] as String?;
     if (customerId == null) return;
-    await _bumpCustomerUpdatedAt(customerId);
+    await _bumpCustomerUpdatedAt(customerId, executor: db);
   }
 
   Future<Map<String, List<OrderAttachment>>> _attachmentsByOrderIds(
