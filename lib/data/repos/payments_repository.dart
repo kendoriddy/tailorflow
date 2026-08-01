@@ -1,3 +1,4 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../db/app_database.dart';
@@ -76,50 +77,52 @@ ORDER BY p.paid_at DESC
   }) async {
     final id = _uuid.v4();
     final ts = (paidAt ?? DateTime.now()).millisecondsSinceEpoch;
-    await _db.raw.insert('payments', {
+    final payload = {
       'id': id,
       'order_id': orderId,
       'amount_ngn': amountNgn,
       'paid_at': ts,
       'note': note?.trim(),
+    };
+    await _db.raw.transaction((txn) async {
+      await txn.insert('payments', payload);
+      await _bumpCustomerUpdatedAtForOrder(orderId, executor: txn);
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertPayment,
+        entityId: id,
+        payload: payload,
+      );
     });
-    await _bumpCustomerUpdatedAtForOrder(orderId);
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertPayment,
-      entityId: id,
-      payload: {
-        'id': id,
-        'order_id': orderId,
-        'amount_ngn': amountNgn,
-        'paid_at': ts,
-        'note': note?.trim(),
-      },
-    );
   }
 
   Future<void> updatePayment(Payment p) async {
-    await _db.raw.update(
-      'payments',
-      {
-        'amount_ngn': p.amountNgn,
-        'paid_at': p.paidAt.millisecondsSinceEpoch,
-        'note': p.note?.trim(),
-      },
-      where: 'id = ?',
-      whereArgs: [p.id],
-    );
-    await _bumpCustomerUpdatedAtForOrder(p.orderId);
-    await _outbox.enqueue(
-      type: OutboxOpType.upsertPayment,
-      entityId: p.id,
-      payload: {
-        'id': p.id,
-        'order_id': p.orderId,
-        'amount_ngn': p.amountNgn,
-        'paid_at': p.paidAt.millisecondsSinceEpoch,
-        'note': p.note?.trim(),
-      },
-    );
+    final payload = {
+      'id': p.id,
+      'order_id': p.orderId,
+      'amount_ngn': p.amountNgn,
+      'paid_at': p.paidAt.millisecondsSinceEpoch,
+      'note': p.note?.trim(),
+    };
+    await _db.raw.transaction((txn) async {
+      await txn.update(
+        'payments',
+        {
+          'amount_ngn': p.amountNgn,
+          'paid_at': p.paidAt.millisecondsSinceEpoch,
+          'note': p.note?.trim(),
+        },
+        where: 'id = ?',
+        whereArgs: [p.id],
+      );
+      await _bumpCustomerUpdatedAtForOrder(p.orderId, executor: txn);
+      await _outbox.enqueueWithExecutor(
+        txn,
+        type: OutboxOpType.upsertPayment,
+        entityId: p.id,
+        payload: payload,
+      );
+    });
   }
 
   Future<void> deletePayment(String id) async {
@@ -130,15 +133,19 @@ ORDER BY p.paid_at DESC
     // v1 core flow is offline-first; deletes are local only for now.
   }
 
-  Future<void> _bumpCustomerUpdatedAtForOrder(String orderId) async {
-    final rows = await _db.raw.rawQuery(
+  Future<void> _bumpCustomerUpdatedAtForOrder(
+    String orderId, {
+    DatabaseExecutor? executor,
+  }) async {
+    final db = executor ?? _db.raw;
+    final rows = await db.rawQuery(
       'SELECT customer_id FROM orders WHERE id = ?',
       [orderId],
     );
     if (rows.isEmpty) return;
     final customerId = rows.first['customer_id'] as String?;
     if (customerId == null) return;
-    await _db.raw.update(
+    await db.update(
       'customers',
       {'updated_at': DateTime.now().millisecondsSinceEpoch},
       where: 'id = ?',
