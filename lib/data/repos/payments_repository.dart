@@ -76,12 +76,14 @@ ORDER BY p.paid_at DESC
     String? note,
   }) async {
     final id = _uuid.v4();
-    final ts = (paidAt ?? DateTime.now()).millisecondsSinceEpoch;
+    final paidAtTs = (paidAt ?? DateTime.now()).millisecondsSinceEpoch;
+    final updatedAt = DateTime.now().millisecondsSinceEpoch;
     final payload = {
       'id': id,
       'order_id': orderId,
       'amount_ngn': amountNgn,
-      'paid_at': ts,
+      'paid_at': paidAtTs,
+      'updated_at': updatedAt,
       'note': note?.trim(),
     };
     await _db.raw.transaction((txn) async {
@@ -97,11 +99,13 @@ ORDER BY p.paid_at DESC
   }
 
   Future<void> updatePayment(Payment p) async {
+    final updatedAt = DateTime.now().millisecondsSinceEpoch;
     final payload = {
       'id': p.id,
       'order_id': p.orderId,
       'amount_ngn': p.amountNgn,
       'paid_at': p.paidAt.millisecondsSinceEpoch,
+      'updated_at': updatedAt,
       'note': p.note?.trim(),
     };
     await _db.raw.transaction((txn) async {
@@ -110,6 +114,7 @@ ORDER BY p.paid_at DESC
         {
           'amount_ngn': p.amountNgn,
           'paid_at': p.paidAt.millisecondsSinceEpoch,
+          'updated_at': updatedAt,
           'note': p.note?.trim(),
         },
         where: 'id = ?',

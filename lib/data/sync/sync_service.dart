@@ -231,6 +231,34 @@ class SyncService {
     return <String, dynamic>{...payload, 'created_at': fallback};
   }
 
+  /// Older outbox rows omitted [updated_at] for payments; use the local row or
+  /// payment date so conflict checks can still compare against remote state.
+  Future<Map<String, dynamic>> _hydrateUpdatedAt({
+    required String table,
+    required Map<String, dynamic> payload,
+    Object? fallbackTimestamp,
+  }) async {
+    if (payload['updated_at'] != null) return payload;
+    final id = payload['id'] as String?;
+    if (id != null) {
+      final rows = await _db.raw.query(
+        table,
+        columns: ['updated_at'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isNotEmpty && rows.first['updated_at'] != null) {
+        return <String, dynamic>{
+          ...payload,
+          'updated_at': rows.first['updated_at'],
+        };
+      }
+    }
+    final fallback = fallbackTimestamp ?? DateTime.now().millisecondsSinceEpoch;
+    return <String, dynamic>{...payload, 'updated_at': fallback};
+  }
+
   /// Minimal example mapping: requires matching tables in Supabase project.
   Future<void> _applyRemote(
     SupabaseClient client,
@@ -295,7 +323,23 @@ class SyncService {
             );
         break;
       case 'upsertPayment':
-        await client.from('payments').upsert(_payloadWithShop(payload, shopId));
+        final hydrated = await _hydrateUpdatedAt(
+          table: 'payments',
+          payload: payload,
+          fallbackTimestamp: payload['paid_at'],
+        );
+        if (await _remoteHasNewerVersion(
+          client,
+          table: 'payments',
+          id: hydrated['id'],
+          localTimestamp: hydrated['updated_at'],
+        )) {
+          debugPrint('Skipped stale payment sync op for ${hydrated['id']}');
+          break;
+        }
+        await client
+            .from('payments')
+            .upsert(_payloadWithShop(hydrated, shopId));
         break;
       case 'upsertOrderAttachment':
         await client
@@ -487,7 +531,7 @@ class SyncService {
     final rows = await _selectAllRemoteRows(
       client,
       table: 'payments',
-      columns: 'id, order_id, amount_ngn, paid_at, note',
+      columns: 'id, order_id, amount_ngn, paid_at, updated_at, note',
     );
     for (final row in rows) {
       final m = row as Map<String, dynamic>;
@@ -498,6 +542,7 @@ class SyncService {
           'order_id': m['order_id'],
           'amount_ngn': m['amount_ngn'],
           'paid_at': m['paid_at'],
+          'updated_at': m['updated_at'] ?? m['paid_at'],
           'note': m['note'],
         },
         conflictAlgorithm: ConflictAlgorithm.replace,

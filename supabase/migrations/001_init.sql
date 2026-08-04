@@ -132,6 +132,7 @@ create table if not exists public.payments (
   order_id text not null references public.orders (id) on delete cascade,
   amount_ngn bigint not null,
   paid_at bigint not null,
+  updated_at bigint not null default ((extract(epoch from now()) * 1000)::bigint),
   note text
 );
 
@@ -154,6 +155,9 @@ alter table public.customers add column if not exists birthday_consent integer n
 alter table public.measurement_profiles add column if not exists shop_id uuid;
 alter table public.orders add column if not exists shop_id uuid;
 alter table public.payments add column if not exists shop_id uuid;
+alter table public.payments add column if not exists updated_at bigint;
+alter table public.payments
+  alter column updated_at set default ((extract(epoch from now()) * 1000)::bigint);
 alter table public.order_attachments add column if not exists shop_id uuid;
 alter table public.measurement_profiles add column if not exists hip double precision;
 
@@ -217,6 +221,10 @@ begin
   from public.orders o
   where p.order_id = o.id
     and p.shop_id is null;
+
+  update public.payments
+  set updated_at = paid_at
+  where updated_at is null;
 
   update public.order_attachments a
   set shop_id = o.shop_id
@@ -307,6 +315,7 @@ alter table public.customers alter column shop_id set not null;
 alter table public.measurement_profiles alter column shop_id set not null;
 alter table public.orders alter column shop_id set not null;
 alter table public.payments alter column shop_id set not null;
+alter table public.payments alter column updated_at set not null;
 alter table public.order_attachments alter column shop_id set not null;
 
 -- RLS

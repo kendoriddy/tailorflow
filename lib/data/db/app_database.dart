@@ -13,7 +13,7 @@ class AppDatabase {
   final Database _db;
 
   static const _name = 'tailorflow.db';
-  static const _version = 5;
+  static const _version = 6;
 
   static Future<AppDatabase> open() async {
     configureSqfliteForCurrentPlatform();
@@ -97,6 +97,7 @@ CREATE TABLE payments (
   order_id TEXT NOT NULL,
   amount_ngn INTEGER NOT NULL,
   paid_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
   note TEXT,
   FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
 );
@@ -211,6 +212,12 @@ CREATE TABLE order_attachments (
 ''');
           await db.execute(
             'CREATE INDEX idx_order_attachments_order ON order_attachments(order_id);',
+          );
+        }
+        if (oldVersion < 6) {
+          await db.execute('ALTER TABLE payments ADD COLUMN updated_at INTEGER;');
+          await db.execute(
+            'UPDATE payments SET updated_at = paid_at WHERE updated_at IS NULL;',
           );
         }
       },
