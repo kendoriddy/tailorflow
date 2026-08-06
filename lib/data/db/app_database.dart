@@ -220,5 +220,23 @@ CREATE TABLE order_attachments (
 
   Database get raw => _db;
 
+  Future<void> clearLocalData() async {
+    const tables = [
+      'order_attachments',
+      'payments',
+      'notifications',
+      'orders',
+      'measurement_profiles',
+      'customers',
+      'outbox_ops',
+      'shop_settings',
+    ];
+    await _db.transaction((txn) async {
+      for (final table in tables) {
+        await txn.delete(table);
+      }
+    });
+  }
+
   Future<void> close() => _db.close();
 }

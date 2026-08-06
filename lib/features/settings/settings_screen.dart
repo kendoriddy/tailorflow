@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -10,12 +11,13 @@ import '../../data/billing/remote_flags.dart';
 import '../../data/billing/subscription_pricing.dart';
 import '../../data/billing/subscription_status.dart';
 import '../../data/data_layer.dart';
+import '../../data/data_layer_provider.dart';
 import '../billing/paywall_screen.dart';
 import 'backup_screen.dart';
 import 'branding_settings_screen.dart';
 import 'feedback_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({
     super.key,
     required this.layer,
@@ -26,13 +28,14 @@ class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBrandingChanged;
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late Future<ShopSubscriptionStatus> _subscription;
   late Future<_PlanUsage> _planUsage;
   late Future<_SyncIdentity> _syncIdentity;
+  bool _signingOut = false;
 
   @override
   void initState() {
@@ -78,6 +81,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(content: Text(report.message)),
     );
     await _reload();
+  }
+
+  Future<void> _signOut() async {
+    if (_signingOut) return;
+    setState(() => _signingOut = true);
+
+    try {
+      final client = Supabase.instance.client;
+      final pendingBefore = (await widget.layer.outbox.pendingOps()).length;
+      if (pendingBefore > 0) {
+        final report = await widget.layer.sync.flushOutbox();
+        if (!report.success || report.pending > 0) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Sync pending changes before signing out. ${report.message}',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
+      await widget.layer.sync.dispose();
+      await widget.layer.clearLocalData();
+      try {
+        await client.auth.signOut();
+      } catch (_) {
+        widget.layer.sync.start();
+        rethrow;
+      }
+      ref.invalidate(dataLayerProvider);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Signed out.')),
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cloud sign-in is not configured for this build.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _signingOut = false);
+      }
+    }
   }
 
   Future<_SyncIdentity> _loadSyncIdentity() async {
@@ -311,26 +367,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.logout),
             title: const Text('Sign out'),
             subtitle: const Text('Sign out from this device'),
-            onTap: () async {
-              try {
-                final client = Supabase.instance.client;
-                await client.auth.signOut();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Signed out.')),
-                );
-                await _reload();
-              } catch (_) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Cloud sign-in is not configured for this build.',
-                    ),
-                  ),
-                );
-              }
-            },
+            enabled: !_signingOut,
+            trailing: _signingOut
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
+            onTap: _signingOut ? null : _signOut,
           ),
           const _SettingsSectionHeader('Legal'),
           ListTile(

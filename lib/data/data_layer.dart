@@ -89,5 +89,7 @@ class DataLayer {
     return layer;
   }
 
+  Future<void> clearLocalData() => db.clearLocalData();
+
   Future<void> close() => db.close();
 }
