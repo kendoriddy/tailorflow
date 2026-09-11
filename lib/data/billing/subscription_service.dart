@@ -176,7 +176,7 @@ class SubscriptionService {
         active: true,
         status: 'active',
         plan: _planFromSettings(data['plan'] as String?),
-        periodEnd: null,
+        periodEnd: _parsePeriodEnd(data['subscription_period_end']),
       );
       await _settings.setSubscribed(true);
     }

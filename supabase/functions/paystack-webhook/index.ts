@@ -10,6 +10,112 @@ import {
 } from "../_shared/paystack.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 
+function normalizedPlan(raw: unknown): SubscriptionPlan | null {
+  return raw === "monthly" || raw === "yearly" ? raw : null;
+}
+
+function planFromPaystackData(
+  data: Record<string, unknown>,
+): SubscriptionPlan | null {
+  const metadata = data.metadata as Record<string, unknown> | undefined;
+  const metaPlan = normalizedPlan(metadata?.plan);
+  if (metaPlan) return metaPlan;
+
+  const plan = data.plan as
+    { interval?: string; plan_code?: string } | undefined;
+  const interval = plan?.interval?.toLowerCase();
+  if (interval?.includes("year") || interval === "annually") return "yearly";
+  if (interval?.includes("month")) return "monthly";
+
+  const planCode = plan?.plan_code?.toLowerCase() ?? "";
+  if (planCode.includes("year")) return "yearly";
+  if (planCode.includes("month")) return "monthly";
+  return null;
+}
+
+function nextPaymentDateFromPaystackData(
+  data: Record<string, unknown>,
+): string | null {
+  if (typeof data.next_payment_date === "string") {
+    return data.next_payment_date;
+  }
+  const subscription = data.subscription as
+    { next_payment_date?: string } | undefined;
+  return typeof subscription?.next_payment_date === "string"
+    ? subscription.next_payment_date
+    : null;
+}
+
+async function findShopByPaystackCodes(
+  admin: ReturnType<typeof serviceClient>,
+  subscriptionCode?: string,
+  customerCode?: string,
+): Promise<{ id: string; subscription_plan: string | null } | null> {
+  if (subscriptionCode) {
+    const { data: shop, error } = await admin
+      .from("shops")
+      .select("id, subscription_plan")
+      .eq("paystack_subscription_code", subscriptionCode)
+      .maybeSingle();
+    if (error) throw error;
+    if (shop) return shop as { id: string; subscription_plan: string | null };
+  }
+
+  if (customerCode) {
+    const { data: shop, error } = await admin
+      .from("shops")
+      .select("id, subscription_plan")
+      .eq("paystack_customer_code", customerCode)
+      .maybeSingle();
+    if (error) throw error;
+    if (shop) return shop as { id: string; subscription_plan: string | null };
+  }
+
+  return null;
+}
+
+async function activateProcessedPayment(
+  admin: ReturnType<typeof serviceClient>,
+  params: {
+    reference: string;
+    shopId: string;
+    event: string;
+    plan: SubscriptionPlan;
+    paystackSubscriptionCode?: string | null;
+    paystackCustomerCode?: string | null;
+    periodEnd: string;
+  },
+): Promise<boolean> {
+  const { data, error } = await admin.rpc(
+    "activate_paystack_processed_payment",
+    {
+      p_reference: params.reference,
+      p_shop_id: params.shopId,
+      p_event: params.event,
+      p_plan: params.plan,
+      p_paystack_subscription_code: params.paystackSubscriptionCode ?? null,
+      p_paystack_customer_code: params.paystackCustomerCode ?? null,
+      p_period_end: params.periodEnd,
+    },
+  );
+  if (!error) return data === true;
+  throw error;
+}
+
+async function markCheckoutCompleted(
+  admin: ReturnType<typeof serviceClient>,
+  reference: string,
+): Promise<void> {
+  const { error } = await admin
+    .from("paystack_checkout_sessions")
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("reference", reference);
+  if (error) throw error;
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -56,38 +162,53 @@ serve(async (req) => {
         const status = data.status as string | undefined;
         if (!reference || status !== "success") break;
 
-        const { data: session } = await admin
+        const { data: session, error: sessionErr } = await admin
           .from("paystack_checkout_sessions")
-          .select("shop_id, plan")
+          .select("shop_id, plan, status")
           .eq("reference", reference)
           .maybeSingle();
+        if (sessionErr) throw sessionErr;
+        if (session?.status === "completed") break;
 
-        const shopId = session?.shop_id ?? shopIdFromMeta();
+        const customer = data.customer as
+          { customer_code?: string } | undefined;
+        const sub = data.subscription as
+          { subscription_code?: string } | undefined;
+
+        const metaShopId = shopIdFromMeta();
+        const codeShop =
+          session || metaShopId
+            ? null
+            : await findShopByPaystackCodes(
+                admin,
+                sub?.subscription_code,
+                customer?.customer_code,
+              );
+        const shopId = session?.shop_id ?? metaShopId ?? codeShop?.id;
         if (!shopId) break;
 
-        const plan = (session?.plan ?? "monthly") as SubscriptionPlan;
-        const customer = data.customer as
-          | { customer_code?: string }
-          | undefined;
-        const sub = data.subscription as
-          | { subscription_code?: string }
-          | undefined;
+        const plan = (normalizedPlan(session?.plan) ??
+          planFromPaystackData(data) ??
+          normalizedPlan(codeShop?.subscription_plan) ??
+          "monthly") as SubscriptionPlan;
+        const periodEnd =
+          nextPaymentDateFromPaystackData(data) ?? periodEndFromPlan(plan);
 
-        await activateShopSubscription(admin, {
+        const firstProcessing = await activateProcessedPayment(admin, {
+          reference,
           shopId,
+          event: event.event,
           plan,
           paystackCustomerCode: customer?.customer_code ?? null,
           paystackSubscriptionCode: sub?.subscription_code ?? null,
-          periodEnd: periodEndFromPlan(plan),
+          periodEnd,
         });
+        if (!firstProcessing) {
+          if (session) await markCheckoutCompleted(admin, reference);
+          break;
+        }
 
-        await admin
-          .from("paystack_checkout_sessions")
-          .update({
-            status: "completed",
-            completed_at: new Date().toISOString(),
-          })
-          .eq("reference", reference);
+        if (session) await markCheckoutCompleted(admin, reference);
         break;
       }
 
@@ -101,8 +222,7 @@ serve(async (req) => {
           : "monthly";
         const subCode = data.subscription_code as string | undefined;
         const customer = data.customer as
-          | { customer_code?: string }
-          | undefined;
+          { customer_code?: string } | undefined;
         const nextPayment = data.next_payment_date as string | undefined;
 
         await activateShopSubscription(admin, {
@@ -118,8 +238,7 @@ serve(async (req) => {
       case "subscription.disable":
       case "invoice.payment_failed": {
         const customer = data.customer as
-          | { customer_code?: string }
-          | undefined;
+          { customer_code?: string } | undefined;
         if (!customer?.customer_code) break;
         const { data: shops } = await admin
           .from("shops")
