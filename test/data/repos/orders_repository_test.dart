@@ -146,6 +146,7 @@ CREATE TABLE payments (
   order_id TEXT NOT NULL,
   amount_ngn INTEGER NOT NULL,
   paid_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
   note TEXT,
   FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
 );

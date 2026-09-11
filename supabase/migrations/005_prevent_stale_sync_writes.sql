@@ -37,3 +37,10 @@ create trigger orders_keep_newer_updated_at
 before update on public.orders
 for each row
 execute function public.keep_newer_updated_at();
+
+drop trigger if exists payments_keep_newer_updated_at
+  on public.payments;
+create trigger payments_keep_newer_updated_at
+before update on public.payments
+for each row
+execute function public.keep_newer_updated_at();

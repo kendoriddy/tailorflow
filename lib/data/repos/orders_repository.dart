@@ -168,6 +168,7 @@ ORDER BY o.due_date ASC
           'order_id': orderId,
           'amount_ngn': initialPaymentNgn,
           'paid_at': paymentTs,
+          'updated_at': now,
           'note': null,
         };
         await txn.insert('payments', paymentPayload);
