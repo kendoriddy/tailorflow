@@ -26,7 +26,7 @@ Use this alongside:
 | Android release signing | Template added | Generate keystore + `android/key.properties` (see [Android signing](#android-signing)) |
 | iOS camera/photo permissions | Done | `Info.plist` usage strings for `image_picker` |
 | iOS Privacy Manifest | Done | `ios/Runner/PrivacyInfo.xcprivacy` |
-| Release build uses debug key | Fixed in Gradle | Requires your `key.properties` before Play upload |
+| Release build uses debug key | Fixed in Gradle | Release builds fail until `key.properties` is configured |
 | CI/CD | Not configured | Add GitHub Actions / Codemagic when accounts exist |
 | In-app subscriptions (v1 store) | **Disabled** | Default `REMOTE_PAYWALL=false` — no upgrade UI, no limits enforced |
 | Billing code in repo | Preserved | Tag `v1.0.0-with-paystack-billing`, branch `archive/with-paystack-billing` |
@@ -139,7 +139,9 @@ cp android/key.properties.example android/key.properties
 # Edit: storePassword, keyPassword, keyAlias, storeFile
 ```
 
-`android/app/build.gradle.kts` reads `key.properties` for release signing when the file exists.
+`android/app/build.gradle.kts` reads `key.properties` for release signing. Release
+tasks fail if this file is missing or incomplete so store artifacts are never
+signed with the debug key.
 
 **Play App Signing:** Enroll when creating the app. Google holds the app signing key; you upload with the upload key above.
 

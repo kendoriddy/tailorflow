@@ -9,6 +9,30 @@ def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+def requireKeystoreProperty = { name ->
+    def value = keystoreProperties[name]
+    if (value == null || value.toString().trim().isEmpty()) {
+        throw new GradleException(
+            "Missing '${name}' in ${keystorePropertiesFile.path}. " +
+            "Copy key.properties.example and fill in the release upload keystore values."
+        )
+    }
+    return value
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def releaseRequested = taskGraph.allTasks.any {
+        it.name.toLowerCase().contains('release')
+    }
+    if (releaseRequested && !hasReleaseKeystore) {
+        throw new GradleException(
+            "Missing ${keystorePropertiesFile.path}. " +
+            "Release builds must use the Play upload keystore; " +
+            "copy key.properties.example to key.properties and fill it in."
+        )
+    }
+}
 
 android {
     namespace = "ng.tailorflow.tailorflow_ng"
@@ -33,20 +57,18 @@ android {
 
     signingConfigs {
         release {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
+            if (hasReleaseKeystore) {
+                keyAlias requireKeystoreProperty('keyAlias')
+                keyPassword requireKeystoreProperty('keyPassword')
+                storeFile file(requireKeystoreProperty('storeFile'))
+                storePassword requireKeystoreProperty('storePassword')
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig keystorePropertiesFile.exists()
-                ? signingConfigs.release
-                : signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled = false
             shrinkResources = false
         }
